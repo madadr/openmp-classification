@@ -24,7 +24,7 @@ vector<vector<double>> fetchDatasetFromFile()
     // 3 = Iris-virginica
     vector<vector<double>> values{MATRIX_SIZE};
 
-    ifstream file("Iris_trainset.csv");
+    ifstream file("csv/Iris_train_and_test.csv");
     string line;
    
     while (getline(file, line))
