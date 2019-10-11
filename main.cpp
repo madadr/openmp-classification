@@ -13,6 +13,9 @@ using namespace std;
 
 static constexpr uint32_t ATTRIBUTES = 4;
 static constexpr uint32_t MATRIX_SIZE = ATTRIBUTES + 1; // attributes + its class
+
+static constexpr uint32_t TRAIN_SET_SIZE = 135;
+static constexpr uint32_t TEST_SET_SIZE = 15;
 } // namespace
 
 vector<vector<double>> fetchDatasetFromFile()
@@ -112,8 +115,53 @@ void standarize(vector<double> &dataset)
     }
 }
 
-void knn(vector<vector<double>> &dataset)
+void knn(vector<vector<double>> dataset)
 {
+    int correct = 0;
+    int minimalDistance{};
+    int minimalDistanceIndex{};
+    for (int i = TRAIN_SET_SIZE; i < TRAIN_SET_SIZE + TEST_SET_SIZE; ++i)
+    {
+        // Calculate squares for every attribute
+        for (int j = 0; j < ATTRIBUTES; ++j)
+        {
+            double testAttribute = dataset.at(j).at(i);
+            for (int k = 0; k < TRAIN_SET_SIZE; ++k)
+            {
+                double tmp = testAttribute - dataset.at(j).at(k);
+                dataset.at(j).at(k) = tmp * tmp;                
+            }
+        }
+
+        double minimalSum;
+        double genre;
+        // Sum each row & calculate square root
+        for (int k = 0; k < TRAIN_SET_SIZE; ++k)
+        {
+            int sum = 0.0;
+            for (int j = 0; j < ATTRIBUTES; ++j)
+            {
+                sum += dataset.at(j).at(k);
+            }
+
+            sum = sqrt(sum);
+
+            if (k == 0 || sum < minimalSum)
+            {
+                minimalSum = sum;
+                genre = dataset.at(MATRIX_SIZE - 1).at(k);
+            }
+        }
+
+        std::cout << "Row i = " << i << " detected as \n\t" << genre << "\nactual\n\t" << dataset.at(MATRIX_SIZE - 1).at(i) << std::endl;
+        if (genre == dataset.at(MATRIX_SIZE - 1).at(i))
+        {
+            ++correct;
+        }
+    }
+
+    std::cout << "Accuracy: " << correct << "/" << TEST_SET_SIZE
+        << "\nPercentage: " << static_cast<double>(correct) / static_cast<double>(TEST_SET_SIZE) * 100.0 << "%" << std::endl;
 }
 
 int main()
@@ -129,14 +177,10 @@ int main()
 
     knn(dataset);
 
-    for (const auto &a : dataset)
-        for (const auto &x : a)
-            cout << x << " ";
     // #pragma omp parallel for
-    // for (int i = 1; i <= 10; ++i)
-    // {
-    //     cout << i << endl;
-    // }
+    // for (const auto &a : dataset)
+    //     for (const auto &x : a)
+    //         cout << x << " ";
 
     return 0;
 }
