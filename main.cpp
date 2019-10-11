@@ -11,24 +11,24 @@ namespace
 {
 using namespace std;
 
-static constexpr uint32_t ATTRIBUTES = 4;
+static constexpr uint32_t ATTRIBUTES = 11;
 static constexpr uint32_t MATRIX_SIZE = ATTRIBUTES + 1; // attributes + its class
 
-static constexpr uint32_t TRAIN_SET_SIZE = 135;
-static constexpr uint32_t TEST_SET_SIZE = 15;
-} // namespace
+// static constexpr uint32_t TRAIN_SET_SIZE = 5;
+static constexpr uint32_t TRAIN_SET_SIZE = 1000;
+// static constexpr uint32_t TEST_SET_SIZE = 5;
+static constexpr uint32_t TEST_SET_SIZE = 499;
+}
 
 vector<vector<double>> fetchDatasetFromFile()
 {
+    // Wine quality dataset
+    // https://archive.ics.uci.edu/ml/datasets/Wine+Quality
     // CSV format:
-    // Id,SepalLengthCm,SepalWidthCm,PetalLengthCm,PetalWidthCm,Species
-    // Species:
-    // 1 = Iris-setosa
-    // 2 = Iris-versicolor
-    // 3 = Iris-virginica
+    // "fixed acidity";"volatile acidity";"citric acid";"residual sugar";"chlorides";"free sulfur dioxide";"total sulfur dioxide";"density";"pH";"sulphates";"alcohol";"quality"
     vector<vector<double>> values{MATRIX_SIZE};
 
-    ifstream file("csv/Iris_train_and_test.csv");
+    ifstream file("csv/winequality-red.csv");
     string line;
 
     while (getline(file, line))
@@ -36,14 +36,10 @@ vector<vector<double>> fetchDatasetFromFile()
         stringstream stream(line);
         string stringValue; // represents double value
         int position = 0;
-        while (getline(stream, stringValue, ','))
+        while (getline(stream, stringValue, ';'))
         {
-            if (position != 0) // id is on first position - skip it
-            {
-                values.at(position - 1).push_back(stod(stringValue));
-            }
-
-            position = (position + 1) % 6;
+            values.at(position).push_back(stod(stringValue));
+            position = (position + 1) % MATRIX_SIZE;
         }
     }
 
@@ -117,7 +113,7 @@ void standarize(vector<double> &dataset)
 
 void knn(vector<vector<double>> dataset)
 {
-    int correct = 0;
+    int correct{};
     int minimalDistance{};
     int minimalDistanceIndex{};
     for (int i = TRAIN_SET_SIZE; i < TRAIN_SET_SIZE + TEST_SET_SIZE; ++i)
@@ -138,7 +134,7 @@ void knn(vector<vector<double>> dataset)
         // Sum each row & calculate square root
         for (int k = 0; k < TRAIN_SET_SIZE; ++k)
         {
-            int sum = 0.0;
+            double sum = 0.0;
             for (int j = 0; j < ATTRIBUTES; ++j)
             {
                 sum += dataset.at(j).at(k);
@@ -146,14 +142,19 @@ void knn(vector<vector<double>> dataset)
 
             sum = sqrt(sum);
 
+            // std::cout << "sum = " << sum << std::endl;
+            // std::cout << "minimalSum = " << minimalSum << std::endl;
+            // std::cout << "genre bfr = " << genre << std::endl;
             if (k == 0 || sum < minimalSum)
             {
                 minimalSum = sum;
+                // std::cout << "minimalSum aft = " << minimalSum << std::endl;
                 genre = dataset.at(MATRIX_SIZE - 1).at(k);
+                // std::cout << "genre aft = " << genre << std::endl;
             }
         }
 
-        std::cout << "Row i = " << i << " detected as \n\t" << genre << "\nactual\n\t" << dataset.at(MATRIX_SIZE - 1).at(i) << std::endl;
+        // std::cout << "Row i = " << i << " detected as \n\t" << genre << "\nactual\n\t" << dataset.at(MATRIX_SIZE - 1).at(i) << std::endl;
         if (genre == dataset.at(MATRIX_SIZE - 1).at(i))
         {
             ++correct;
@@ -171,8 +172,8 @@ int main()
     // #pragma omp parallel for
     for (int i = 0; i < ATTRIBUTES; ++i)
     {
-        // normalize(dataset.at(i));
-        standarize(dataset.at(i));
+        normalize(dataset.at(i));
+        // standarize(dataset.at(i));
     }
 
     knn(dataset);
