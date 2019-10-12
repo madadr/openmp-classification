@@ -5,30 +5,40 @@
 
 ## Environment preparation
 ### C++ & OpenMP
-#### Install g++ version 9 (c++20 experimental support)
+#### Install g++
+```
 sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
 sudo apt-get update
 sudo apt-get upgrade
-sudo apt-get install g++-9 # v7 should be enough
+sudo apt-get install g++
+```
 
 #### Install OpenMP
+```
 sudo apt-get install libomp-dev
+```
 
 ### Python
 #### Install python
+```
 sudo apt install python3-pip
+```
 
 #### Install sklearn with dependencies
+```
 pip3 install -U scikit-learn[alldeps]
+```
 
 ## Running apps
 ### Compile & execute C++ program
-g++ -std=gnu++17 -fopenmp main.cpp -o main && ./main
-or
-g++-9 -std=gnu++2a -fopenmp main.cpp -o main && ./main
+```
+g++ -std=gnu++17 -Wall -fopenmp Main.cpp Stopwatch.cpp LetterRecognition.cpp Scalers.cpp -o app && ./app
+```
 
 ### Execute Python program
-TBD
+```
+python3 main.py
+```
 
 ## Dataset description
 - Letter recognition dataset
