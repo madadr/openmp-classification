@@ -23,6 +23,37 @@ static constexpr uint TEST_SET_SIZE = SET_SIZE * 0.1;
 vector<char> letters;
 }
 
+vector<vector<double>> fetchDatasetFromFile();
+void normalize(vector<double> &attributeSet);
+std::pair<double, double> findMinMax(vector<double> &attributeSet);
+void standarize(vector<double> &attributeSet);
+std::pair<double, double> findAverageAndVariation(vector<double> &attributeSet);
+void knn(vector<vector<double>>& inputDataset);
+
+int main()
+{
+    StopWatch timer;
+
+    letters.reserve(SET_SIZE);
+    auto dataset = fetchDatasetFromFile();
+
+    timer.start();
+    // #pragma omp parallel for
+    for (uint i = 0; i < ATTRIBUTES; ++i)
+    {
+        normalize(dataset.at(i));
+        standarize(dataset.at(i));
+    }
+
+    knn(dataset);
+
+    timer.stop();
+    timer.displayTime();
+
+    return 0;
+}
+
+
 vector<vector<double>> fetchDatasetFromFile()
 {
     vector<vector<double>> values(ATTRIBUTES);
@@ -165,31 +196,4 @@ void knn(vector<vector<double>>& inputDataset)
 
     std::cout << "Accuracy: " << correct << "/" << TEST_SET_SIZE
         << "\nPercentage: " << static_cast<double>(correct) / static_cast<double>(TEST_SET_SIZE) * 100.0 << "%" << std::endl;
-}
-
-void displayTime()
-{
-}
-
-int main()
-{
-    StopWatch timer;
-
-    letters.reserve(SET_SIZE);
-    auto dataset = fetchDatasetFromFile();
-
-    timer.start();
-    // #pragma omp parallel for
-    for (uint i = 0; i < ATTRIBUTES; ++i)
-    {
-        normalize(dataset.at(i));
-        // standarize(dataset.at(i));
-    }
-
-    // knn(dataset);
-
-    timer.stop();
-    timer.displayTime();
-
-    return 0;
 }

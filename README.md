@@ -1,4 +1,4 @@
-# Iris dataset classification app
+# Classification app
 - Solution for classification problem solved in two languages: C++ (parallel with OpenMP) and Python (with sklearn).
 - Letter recognition dataset (UCI) - https://archive.ics.uci.edu/ml/datasets/Letter+Recognition
 - KNN algorithm was used with 2 data preparation variants: data minmax normalization and linear standarization.

@@ -15,6 +15,6 @@ void StopWatch::stop()
 
 void StopWatch::displayTime()
 {
-    std::chrono::duration<double, std::milli> duration = endTime - startTime;
-    std::cout << "took " << duration.count() << " ms" << std::endl;
+    std::chrono::duration<double> duration = endTime - startTime;
+    std::cout << "took " << duration.count() << " s" << std::endl;
 }
