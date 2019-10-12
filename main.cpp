@@ -6,54 +6,35 @@
 #include <cmath>
 #include <utility>
 #include "omp.h"
+#include "stopwatch.hpp"
 
 namespace
 {
 using namespace std;
 
-static constexpr uint32_t ATTRIBUTES = 16;
-static constexpr uint32_t MATRIX_SIZE = ATTRIBUTES + 1; // attributes + its class
+static constexpr uint ATTRIBUTES = 16;
+static constexpr uint MATRIX_SIZE = ATTRIBUTES + 1; // attributes + its class
 
-static constexpr uint32_t SET_SIZE = 20000;
+static constexpr uint SET_SIZE = 20000;
 
-static constexpr uint32_t TRAIN_SET_SIZE = SET_SIZE * 0.9;
-static constexpr uint32_t TEST_SET_SIZE = SET_SIZE * 0.1;
+static constexpr uint TRAIN_SET_SIZE = SET_SIZE * 0.9;
+static constexpr uint TEST_SET_SIZE = SET_SIZE * 0.1;
 
 vector<char> letters;
 }
 
 vector<vector<double>> fetchDatasetFromFile()
 {
-    // Letter recognition dataset
-    // https://archive.ics.uci.edu/ml/datasets/Letter+Recognition
-    // CSV format:
-    // 1. lettr capital letter (26 values from A to Z)
-    // 2. x-box horizontal position of box (integer)
-    // 3. y-box vertical position of box (integer)
-    // 4. width width of box (integer)
-    // 5. high height of box (integer)
-    // 6. onpix total # on pixels (integer)
-    // 7. x-bar mean x of on pixels in box (integer)
-    // 8. y-bar mean y of on pixels in box (integer)
-    // 9. x2bar mean x variance (integer)
-    // 10. y2bar mean y variance (integer)
-    // 11. xybar mean x y correlation (integer)
-    // 12. x2ybr mean of x * x * y (integer)
-    // 13. xy2br mean of x * y * y (integer)
-    // 14. x-ege mean edge count left to right (integer)
-    // 15. xegvy correlation of x-ege with y (integer)
-    // 16. y-ege mean edge count bottom to top (integer)
-    // 17. yegvx correlation of y-ege with x (integer)
     vector<vector<double>> values(ATTRIBUTES);
 
-    ifstream file("csv/letter-recognition.data");
+    ifstream file("csv/letter-recognition.csv");
     string line;
 
     while (getline(file, line))
     {
         stringstream stream(line);
         string stringValue; // represents double value
-        int position = 0;
+        uint position = 0;
         while (getline(stream, stringValue, ','))
         {
             if (position == 0)
@@ -136,19 +117,19 @@ void standarize(vector<double> &attributeSet)
 
 void knn(vector<vector<double>>& inputDataset)
 {
-    int correct{};
-    int minimalDistance{};
-    int minimalDistanceIndex{};
-    for (int i = TRAIN_SET_SIZE; i < TRAIN_SET_SIZE + TEST_SET_SIZE; ++i)
+    uint correct{};
+    #pragma omp parallel for
+    for (uint i = TRAIN_SET_SIZE; i < TRAIN_SET_SIZE + TEST_SET_SIZE; ++i)
     {
         // Copy dataset for each test row
         auto dataset = inputDataset;
 
         // Calculate squares for every attribute
-        for (int j = 0; j < ATTRIBUTES; ++j)
+        #pragma omp parallel for
+        for (uint j = 0; j < ATTRIBUTES; ++j)
         {
             double testAttribute = dataset.at(j).at(i);
-            for (int k = 0; k < TRAIN_SET_SIZE; ++k)
+            for (uint k = 0; k < TRAIN_SET_SIZE; ++k)
             {
                 double tmp = testAttribute - dataset.at(j).at(k);
                 dataset.at(j).at(k) = tmp * tmp;                
@@ -158,10 +139,10 @@ void knn(vector<vector<double>>& inputDataset)
         double minimalSum;
         char genre;
         // Sum each row & calculate square root
-        for (int k = 0; k < TRAIN_SET_SIZE; ++k)
+        for (uint k = 0; k < TRAIN_SET_SIZE; ++k)
         {
             double sum = 0.0;
-            for (int j = 0; j < ATTRIBUTES; ++j)
+            for (uint j = 0; j < ATTRIBUTES; ++j)
             {
                 sum += dataset.at(j).at(k);
             }
@@ -186,24 +167,29 @@ void knn(vector<vector<double>>& inputDataset)
         << "\nPercentage: " << static_cast<double>(correct) / static_cast<double>(TEST_SET_SIZE) * 100.0 << "%" << std::endl;
 }
 
+void displayTime()
+{
+}
+
 int main()
 {
+    StopWatch timer;
+
     letters.reserve(SET_SIZE);
     auto dataset = fetchDatasetFromFile();
 
+    timer.start();
     // #pragma omp parallel for
-    for (int i = 0; i < ATTRIBUTES; ++i)
+    for (uint i = 0; i < ATTRIBUTES; ++i)
     {
-        // normalize(dataset.at(i));
+        normalize(dataset.at(i));
         // standarize(dataset.at(i));
     }
 
-    knn(dataset);
+    // knn(dataset);
 
-    // #pragma omp parallel for
-    // for (const auto &a : dataset)
-    //     for (const auto &x : a)
-    //         cout << x << " ";
+    timer.stop();
+    timer.displayTime();
 
     return 0;
 }
