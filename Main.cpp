@@ -25,17 +25,18 @@ int main()
     #pragma omp parallel for shared(letterData) private(i)
     for (i = 0; i < letterData.attributesAmount; ++i)
     {
-        scalers.normalize(letterData.attributes.at(i));
-        // scalers.standarize(letterData.attributes.at(i));
+        // scalers.normalize(letterData.attributes.at(i));
+        scalers.standarize(letterData.attributes.at(i));
     }
 
     timer.start();
-    auto results = letterRecognition.knn(letterData);
-    // auto results = letterRecognition.knn(letterData, NEIGHBOURS); // TODO
+    // auto results = letterRecognition.knn(letterData);
+    auto results = letterRecognition.knn(letterData, 3);
     timer.stop();
     timer.displayTime();
     
-    results.print();
+    results.printConfustionMatrix();
+    results.printOverallResult();
 
     return 0;
 }
