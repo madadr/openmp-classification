@@ -5,63 +5,50 @@ from sklearn.metrics import accuracy_score
 import datetime
 import csv
 
-start = datetime.datetime.now()
-dataset = []
-genres = []
-with open('csv/letter-recognition.csv', newline='') as csvfile:
-     spamreader = csv.reader(csvfile, delimiter=',', quotechar='|')
-     for row in spamreader:
-         dataset.append(row[1:])
-         genres.append(row[:1][0])
+class LetterData:
+    dataset = []
+    genres = []
 
-print('Dataset: ', dataset)
-print('Genres: ', genres)
-trainingSetSize = int(len(dataset)*0.9)
-print('\n', trainingSetSize)
+def fetchData(path):
+    data = LetterData()
+    with open(path, newline='') as csvfile:
+        fileData = csv.reader(csvfile, delimiter=',', quotechar='|')
+        for row in fileData:
+            data.dataset.append(row[1:])
+            data.genres.append(row[:1][0])
+    return data
 
-# MinMaxScaler
+def knn(letterData):
+    knn = KNeighborsClassifier(n_neighbors=1)
+    trainingSetSize = int(len(letterData.dataset) * 0.9)
 
-minMaxScaler = MinMaxScaler()
-minMaxDataset = minMaxScaler.fit_transform(dataset)
-print(minMaxDataset)
+    knn.fit(letterData.dataset[:trainingSetSize], letterData.genres[:trainingSetSize])
+    prediction = knn.predict(letterData.dataset[trainingSetSize:])
 
-#StandardScaler
+    accuracy = accuracy_score(prediction, letterData.genres[trainingSetSize:])
+    print('Accuracy: ', accuracy*100, '%')
 
-standardScaler = StandardScaler()
-standarizedDataset = standardScaler.fit_transform(dataset)
-print(standarizedDataset)
+def main():
+    start = datetime.datetime.now()
+    data = fetchData('csv/letter-recognition.csv')
 
+    # Normalization
+    normalizedDataset = LetterData()
+    normalizedDataset.dataset = MinMaxScaler().fit_transform(data.dataset)
+    normalizedDataset.genres = data.genres
 
-#KNN classification algorithm
+    #Standarization
+    standarizedDataset = LetterData()
+    standarizedDataset.dataset = StandardScaler().fit_transform(data.dataset)
+    standarizedDataset.genres = data.genres
 
-# Without standarization
-knn = KNeighborsClassifier(n_neighbors=1)
-trainingDataset = dataset[:trainingSetSize]
-knn.fit(trainingDataset, genres[:trainingSetSize])
-prediction = knn.predict(dataset[trainingSetSize:])
-print(prediction)
+    knn(data)
+    knn(normalizedDataset)
+    knn(standarizedDataset)
 
-accuracy = accuracy_score(prediction, genres[trainingSetSize:])
-print('Accuracy: ', accuracy)
+    end = datetime.datetime.now()
+    elapsed = end - start
+    print('Time: ', elapsed)
 
-#MinMaxScaler
-trainingDataset = minMaxDataset[:trainingSetSize]
-knn.fit(trainingDataset, genres[:trainingSetSize])
-minMaxPrediction = knn.predict(minMaxDataset[trainingSetSize:])
-print(minMaxPrediction)
-
-accuracy = accuracy_score(minMaxPrediction, genres[trainingSetSize:])
-print('MinMax accuracy: ', accuracy)
-
-#StandardScaler
-trainingDataset = standarizedDataset[:trainingSetSize]
-knn.fit(trainingDataset, genres[:trainingSetSize])
-standarizedPrediction = knn.predict(standarizedDataset[trainingSetSize:])
-print(standarizedPrediction)
-
-accuracy = accuracy_score(standarizedPrediction, genres[trainingSetSize:])
-print('Standarization accuracy: ', accuracy)
-
-end = datetime.datetime.now()
-elapsed = end - start
-print('Time: ', elapsed)
+if __name__ == "__main__":
+    main()
