@@ -11,6 +11,9 @@ namespace
 
 class LetterRecognition
 {
+    uint32_t SET_SIZE = 20000;
+    uint32_t ATTRIBUTES = 16;
+    uint32_t MATRIX_SIZE = ATTRIBUTES + 1; // attributes + its class
 public:
     struct LetterData
     {
@@ -28,7 +31,7 @@ public:
         void print();
     };
 
-    static LetterData fetchData(const string& path);
-    static Result knn(LetterData& letterData);
-    // static Result knn(LetterData& letterData, uint32_t neighbours); // TODO
+    LetterData fetchData(const string& path);
+    Result knn(LetterData& letterData);
+    // Result knn(LetterData& letterData, uint32_t neighbours); // TODO
 };

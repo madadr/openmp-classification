@@ -10,9 +10,9 @@ namespace
 
 class Scalers
 {
-    static pair<double, double> findMinMax(vector<double> &attributeSet);
-    static pair<double, double> findAverageAndVariation(vector<double> &attributeSet);
+    pair<double, double> findMinMax(vector<double> &attributeSet);
+    pair<double, double> findAverageAndVariation(vector<double> &attributeSet);
 public:
-    static void normalize(vector<double> &attributeSet);
-    static void standarize(vector<double> &attributeSet);
+    void normalize(vector<double> &attributeSet);
+    void standarize(vector<double> &attributeSet);
 };
