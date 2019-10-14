@@ -80,6 +80,7 @@ auto LetterRecognition::knn(LetterData& letterData) -> Result
 
         // Calculate squares for every attribute
         uint32_t j;
+        // #pragma omp parallel for shared(dataset) private(j) schedule(static)
         for (j = 0; j < letterData.attributesAmount; ++j)
         {
             double testAttribute = dataset.at(j).at(i);
@@ -95,6 +96,7 @@ auto LetterRecognition::knn(LetterData& letterData) -> Result
         double minimalSum;
         char predictedGenre = '0';
         // Sum each row & calculate square root
+        // #pragma omp parallel for shared(minimalSum, predictedGenre) private(k) schedule(static)
         for (k = 0; k < TRAIN_SET_SIZE; ++k)
         {
             double sum = 0.0;
@@ -143,7 +145,7 @@ auto LetterRecognition::knn(LetterData& letterData, uint32_t neighbours) -> Resu
     vector<vector<double>> dataset;
     Result result{0, 0, {}};
     // #pragma omp parallel for shared(result) private(i, dataset) schedule(static) num_threads(2)
-    #pragma omp parallel for shared(result) private(i, dataset) schedule(static)
+    #pragma omp parallel for shared(result) private(i, dataset) schedule(static) num_threads(2)
     for (i = TRAIN_SET_SIZE; i < TRAIN_SET_SIZE + TEST_SET_SIZE; ++i)
     {
         // Copy dataset for each test row

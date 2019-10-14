@@ -30,13 +30,13 @@ int main()
     }
 
     timer.start();
-    // auto results = letterRecognition.knn(letterData);
-    auto results = letterRecognition.knn(letterData, 3);
+    auto results = letterRecognition.knn(letterData);
+    // auto results = letterRecognition.knn(letterData, 5);
     timer.stop();
     timer.displayTime();
     
-    results.printConfustionMatrix();
-    results.printOverallResult();
+    // results.printConfustionMatrix();
+    // results.printOverallResult();
 
     return 0;
 }

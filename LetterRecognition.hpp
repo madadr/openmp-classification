@@ -30,7 +30,7 @@ public:
     {
         uint32_t correct;
         uint32_t all;
-        map<char, std::pair<uint32_t, uint32_t>> confusionMatrix;
+        map<char, std::pair<uint32_t, uint32_t>> confusionMatrix; // first pair value = correctly recognized values; second pair value = incorrectly recognized values 
 
         void printOverallResult();
         void printConfustionMatrix();
