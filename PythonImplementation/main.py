@@ -19,7 +19,8 @@ def fetchData(path):
     return data
 
 def knn(letterData):
-    knn = KNeighborsClassifier(n_neighbors=1)
+    # knn = KNeighborsClassifier(n_neighbors=1)
+    knn = KNeighborsClassifier(n_neighbors=1, algorithm='kd_tree', n_jobs = 2)
     trainingSetSize = int(len(letterData.dataset) * 0.9)
 
     knn.fit(letterData.dataset[:trainingSetSize], letterData.genres[:trainingSetSize])
@@ -29,7 +30,6 @@ def knn(letterData):
     print('Accuracy: ', accuracy*100, '%')
 
 def main():
-    start = datetime.datetime.now()
     data = fetchData('csv/letter-recognition.csv')
 
     # Normalization
@@ -42,11 +42,12 @@ def main():
     standarizedDataset.dataset = StandardScaler().fit_transform(data.dataset)
     standarizedDataset.genres = data.genres
 
+    start = datetime.datetime.now()
     knn(data)
+    end = datetime.datetime.now()
     knn(normalizedDataset)
     knn(standarizedDataset)
 
-    end = datetime.datetime.now()
     elapsed = end - start
     print('Time: ', elapsed)
 
