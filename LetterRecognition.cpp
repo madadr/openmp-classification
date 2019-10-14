@@ -1,6 +1,7 @@
 #include "LetterRecognition.hpp"
 
 #include <iostream>
+#include <algorithm>
 #include <fstream>
 #include <sstream>
 #include <cmath>
@@ -51,7 +52,7 @@ void LetterRecognition::Result::printOverallResult()
 {
     double percentage = static_cast<double>(correct) / static_cast<double>(all) * 100.0;
     std::cout << "Accuracy: " << correct << "/" << all
-        << "\nPercentage: " << percentage << "%" << std::endl;
+        << ", Percentage: " << percentage << "%" << std::endl;
 }
 
 void LetterRecognition::Result::printConfustionMatrix()
@@ -243,4 +244,29 @@ char LetterRecognition::voteOnGenre(const set<pair<double, char>>& nearestNeighb
     }
 
     return chosenChar;
+}
+
+void LetterRecognition::crossValidation(LetterData& letterData, uint32_t neighbours)
+{
+    const int ITERATIONS = 10;
+    cout << "Cross validating for " << ITERATIONS << " subsets..." << endl;
+    uint32_t correct = 0; 
+    uint32_t all = 0; 
+    for (int i = 0; i < ITERATIONS; ++i)
+    {
+        for (auto& attributeSet : letterData.attributes)
+        {
+            std::rotate(attributeSet.begin(), attributeSet.begin() + (SET_SIZE * 0.1), attributeSet.end());
+        }
+        std::rotate(letterData.letters.begin(), letterData.letters.begin() + (SET_SIZE * 0.1), letterData.letters.end());
+        auto result = knn(letterData, neighbours);
+        correct += result.correct;
+        all += result.all;
+        cout << "Subset " << i + 1 << " results: " << endl;
+        result.printOverallResult();
+    }
+
+    cout << "Overall cross validation results: " << endl;
+    Result result{correct, all, {}};
+    result.printOverallResult();
 }

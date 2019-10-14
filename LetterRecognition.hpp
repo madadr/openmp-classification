@@ -39,4 +39,5 @@ public:
     LetterData fetchData(const string& path);
     Result knn(LetterData& letterData);
     Result knn(LetterData& letterData, uint32_t neighbours);
+    void crossValidation(LetterData& letterData, uint32_t neighbours);
 };

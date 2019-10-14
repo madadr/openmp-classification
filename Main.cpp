@@ -30,10 +30,12 @@ int main()
     }
 
     timer.start();
-    auto results = letterRecognition.knn(letterData);
+
+    letterRecognition.crossValidation(letterData, 5);
+    // auto results = letterRecognition.knn(letterData);
     // auto results = letterRecognition.knn(letterData, 5);
     timer.stop();
-    timer.displayTime();
+    // timer.displayTime();
     
     // results.printConfustionMatrix();
     // results.printOverallResult();
