@@ -3,6 +3,6 @@
 echo "Cleaning"
 rm app
 echo "Compiling app"
-g++ -std=gnu++17 -Wall -fopenmp Main.cpp Stopwatch.cpp LetterRecognition.cpp Scalers.cpp -o app
+mpic++ -std=gnu++17 -Wall -fopenmp Main.cpp Stopwatch.cpp LetterRecognition.cpp Scalers.cpp MpiWrapper.cpp -o app
 echo "Running app"
-./app
+mpiexec -np 4 ./app

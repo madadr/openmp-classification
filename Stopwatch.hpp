@@ -1,16 +1,12 @@
 #pragma once
 
-#include <chrono>
-#include <ratio>
-#include <thread>
+#include <mpi.h>
 
 class StopWatch
 {
-public:
-    using TimePoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 private:
-    TimePoint startTime;
-    TimePoint endTime;
+    double startTime;
+    double endTime;
 public:
     void start();
     void stop();

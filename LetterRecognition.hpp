@@ -21,9 +21,9 @@ class LetterRecognition
 public:
     struct LetterData
     {
-        vector<vector<double>> attributes;
-        vector<char> letters;
-        uint32_t attributesAmount;
+        vector<vector<double>> attributes{};
+        vector<char> letters{};
+        uint32_t attributesAmount{16};
     };
 
     struct Result

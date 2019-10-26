@@ -1,6 +1,8 @@
 #include "Scalers.hpp"
 
 #include <cmath>
+#include <iostream>
+#include <mpi.h>
 
 namespace
 {
@@ -40,14 +42,51 @@ pair<double, double> Scalers::findMinMax(vector<double> &attributeSet)
     return std::make_pair(min, max);
 }
 
-void Scalers::standarize(vector<double> &attributeSet)
+void Scalers::standarize(vector<vector<double>>* attributeSet, int index)
 {
-    const auto [average, variation] = findAverageAndVariation(attributeSet);
-
-    for (auto& value : attributeSet)
+    double averageVariation[2] {0.,};
+    if (mpiWrapper.getWorldRank() == 0)
     {
-        value = (value - average) / variation;
+        const auto [average, variation] = findAverageAndVariation(attributeSet->at(index));
+        averageVariation[0] = average;
+        averageVariation[1] = variation;
     }
+
+    if (int errorCode = MPI_Bcast(averageVariation, 2, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        errorCode != MPI_SUCCESS)
+    {
+        cout << "Failed to broadcast data! Error:" << errorCode << ". Rank: " << mpiWrapper.getWorldRank() << endl;
+    }
+
+    // cout << mpiWrapper.getWorldRank() << ": " << averageVariation[0] << " + " << averageVariation[1] << endl;
+
+    int valuesPerProcess = 999;
+    if (mpiWrapper.getWorldRank() == 0)
+    {
+        valuesPerProcess = attributeSet->at(0).size() / mpiWrapper.getWorldSize();
+    }
+    if (int errorCode = MPI_Bcast(&valuesPerProcess, 1, MPI_INT, 0, MPI_COMM_WORLD);
+        errorCode != MPI_SUCCESS)
+    {
+        cout << "Failed to broadcast data! Error:" << errorCode << ". Rank: " << mpiWrapper.getWorldRank() << endl;
+    }
+    // cout << "valuesPerProcess " << valuesPerProcess << endl;
+
+    double* set;
+    if (mpiWrapper.getWorldRank() == 0)
+    {
+        set = attributeSet->at(index).data();
+    }
+    vector<double> subset(valuesPerProcess);
+
+    MPI_Scatter(set, valuesPerProcess, MPI_DOUBLE, subset.data(), valuesPerProcess, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+    for (auto& value : subset)
+    {
+        value = (value - averageVariation[0]) / averageVariation[1];
+    }
+
+    MPI_Gather(subset.data(), valuesPerProcess, MPI_DOUBLE, set, valuesPerProcess, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 }
 
 pair<double, double> Scalers::findAverageAndVariation(vector<double> &attributeSet)
