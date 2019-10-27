@@ -9,6 +9,46 @@ namespace
     using namespace std;
 }
 
+void Scalers::normalizeMPI(vector<vector<double>>* attributeSet, int index)
+{
+    double minMax[2] {0.,};
+    if (mpiWrapper.getWorldRank() == 0)
+    {
+        const auto [min, max] = findMinMax(attributeSet->at(index));
+        minMax[0] = min;
+        minMax[1] = max;
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    if (int errorCode = MPI_Bcast(minMax, 2, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        errorCode != MPI_SUCCESS)
+    {
+        cout << "Failed to broadcast data! Error:" << errorCode << ". Rank: " << mpiWrapper.getWorldRank() << endl;
+    }
+
+    int valuesPerProcess = ROWS_AMOUNT / mpiWrapper.getWorldSize();
+
+    double* set;
+    if (mpiWrapper.getWorldRank() == 0)
+    {
+        set = attributeSet->at(index).data();
+    }
+    vector<double> subset(valuesPerProcess);
+
+    auto [sendCounts, displacements] = mpiWrapper.calculateDisplacements(ROWS_AMOUNT);
+    MPI_Scatterv(set, sendCounts.data(), displacements.data(), MPI_DOUBLE, subset.data(), sendCounts.at(mpiWrapper.getWorldRank()), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+    double diff = minMax[1] - minMax[0];
+
+    for (auto& value : subset)
+    {
+        value = (value - minMax[0]) / diff;
+    }
+
+    MPI_Gatherv(subset.data(), sendCounts.at(mpiWrapper.getWorldRank()), MPI_DOUBLE, set, sendCounts.data(), displacements.data(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+}
+
 void Scalers::normalize(vector<double> &attributeSet)
 {
     const auto [min, max] = findMinMax(attributeSet);
@@ -42,7 +82,7 @@ pair<double, double> Scalers::findMinMax(vector<double> &attributeSet)
     return std::make_pair(min, max);
 }
 
-void Scalers::standarize(vector<vector<double>>* attributeSet, int index)
+void Scalers::standarizeMPI(vector<vector<double>>* attributeSet, int index)
 {
     double averageVariation[2] {0.,};
     if (mpiWrapper.getWorldRank() == 0)
@@ -78,6 +118,16 @@ void Scalers::standarize(vector<vector<double>>* attributeSet, int index)
     }
 
     MPI_Gatherv(subset.data(), sendCounts.at(mpiWrapper.getWorldRank()), MPI_DOUBLE, set, sendCounts.data(), displacements.data(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+}
+
+void Scalers::standarize(vector<double> &attributeSet)
+{
+    const auto [average, variation] = findAverageAndVariation(attributeSet);
+
+    for (auto& value : attributeSet)
+    {
+        value = (value - average) / variation;
+    }
 }
 
 pair<double, double> Scalers::findAverageAndVariation(vector<double> &attributeSet)

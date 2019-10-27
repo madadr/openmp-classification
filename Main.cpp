@@ -31,8 +31,8 @@ int main()
 
     for (unsigned int i = 0; i < letterData.attributesAmount; ++i)
     {
-        // scalers.normalize(valueSet);
-        scalers.standarize(&letterData.attributes, i);
+        scalers.normalizeMPI(&letterData.attributes, i);
+        // scalers.standarizeMPI(&letterData.attributes, i);
     }
 
     MPI_Barrier(MPI_COMM_WORLD);

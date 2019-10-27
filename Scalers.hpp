@@ -14,8 +14,10 @@ class Scalers
 {
 public:
     Scalers(MpiWrapper& mpi) : ROWS_AMOUNT{20000}, mpiWrapper{mpi} {}
+    void normalizeMPI(vector<vector<double>>* attributeSet, int index);
     void normalize(vector<double> &attributeSet);
-    void standarize(vector<vector<double>>* attributeSet, int index);
+    void standarizeMPI(vector<vector<double>>* attributeSet, int index);
+    void standarize(vector<double> &attributeSet);
 private:
     const int ROWS_AMOUNT;
     MpiWrapper& mpiWrapper;
