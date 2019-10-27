@@ -10,7 +10,7 @@
 
 namespace
 {
-    using namespace std;
+using namespace std;
 }
 
 class LetterRecognition
@@ -27,26 +27,33 @@ public:
     {
         uint32_t correct{};
         uint32_t all{};
-        map<char, std::pair<uint32_t, uint32_t>> confusionMatrix{}; // first pair value = correctly recognized values; second pair value = incorrectly recognized values 
+        map<char, std::pair<uint32_t, uint32_t>> confusionMatrix{}; // first pair value = correctly recognized values; second pair value = incorrectly recognized values
 
         void printOverallResult();
         void printConfustionMatrix();
     };
 
-    LetterRecognition(MpiWrapper& mpi) : mpiWrapper{mpi} {}
-    LetterData fetchData(const string& path);
-    Result knn(LetterData& letterData);
-    Result knnMPI(LetterData& letterData);
-    Result knn(LetterData& letterData, uint32_t neighbours);
-    void crossValidation(LetterData& letterData, uint32_t neighbours);
+    LetterRecognition(MpiWrapper &mpi) : mpiWrapper{mpi} {}
+    LetterData fetchData(const string &path);
+    Result knnOMP(LetterData &letterData);
+    Result knnOMP(LetterData &letterData, uint32_t neighbours);
+    Result knnMPI(LetterData &letterData);
+    Result knnMPI(LetterData &letterData, uint32_t neighbours);
+    void crossValidationOMP(LetterData &letterData, uint32_t neighbours);
+    void crossValidationMPI(LetterData &letterData, uint32_t neighbours);
+
 private:
+    enum class ParallelType {OMP, MPI};
+
     uint32_t SET_SIZE = 20000;
     uint32_t ATTRIBUTES = 16;
     uint32_t MATRIX_SIZE = ATTRIBUTES + 1; // attributes + its class
 
-    MpiWrapper& mpiWrapper;
+    MpiWrapper &mpiWrapper;
 
-    char voteOnGenre(const set<pair<double, char>>& nearestNeighbours);
-    void broadcastLetterData(LetterData& letterData);
-    Result knnMPI(LetterData& trainData, LetterData& testData);
+    char voteOnGenre(const set<pair<double, char>> &nearestNeighbours);
+    void broadcastLetterData(LetterData &letterData);
+    Result runKnn(LetterData &trainData, LetterData &testData);
+    Result runKnn(LetterData &trainData, LetterData &testData, uint32_t neighbours);
+    void crossValidation(LetterData &letterData, uint32_t neighbours, ParallelType type);
 };

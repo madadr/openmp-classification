@@ -9,7 +9,7 @@
 
 namespace
 {
-    using namespace std;
+using namespace std;
 }
 
 int main()
@@ -36,11 +36,17 @@ int main()
 
     MPI_Barrier(MPI_COMM_WORLD);
     timer.start();
-    auto results = letterRecognition.knnMPI(letterData);
+    auto results = letterRecognition.knnMPI(letterData, 5);
     MPI_Barrier(MPI_COMM_WORLD);
     timer.stop();
-    timer.displayTime();
-    results.printOverallResult();
+    if (mpiWrapper.getWorldRank() == 0)
+    {
+        timer.displayTime();
+        results.printOverallResult();
+        // results.printConfusionMatrix();
+    }
+
+    // letterRecognition.crossValidationMPI(letterData, 3);
 
     return 0;
 }
