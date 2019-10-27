@@ -15,7 +15,7 @@ namespace
 int main()
 {
     MpiWrapper mpiWrapper;
-    LetterRecognition letterRecognition;
+    LetterRecognition letterRecognition(mpiWrapper);
     Scalers scalers(mpiWrapper);
     StopWatch timer;
 
@@ -27,48 +27,20 @@ int main()
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
-    timer.start();
 
     for (unsigned int i = 0; i < letterData.attributesAmount; ++i)
     {
-        scalers.normalizeMPI(&letterData.attributes, i);
-        // scalers.standarizeMPI(&letterData.attributes, i);
+        // scalers.normalizeMPI(&letterData.attributes, i);
+        scalers.standarizeMPI(&letterData.attributes, i);
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
-    timer.stop();
-    timer.displayTime();
-    // // TEST
-    // if (mpiWrapper.getWorldRank() == 0)
-    // {
-    //     cout << letterData.attributes.at(0).at(0) << "\n[1] ";
-    //     cout << letterData.attributes.at(0).at(1) << " ";
-    //     cout << letterData.attributes.at(0).at(2) << " ";
-    //     cout << letterData.attributes.at(0).at(3) << "\n[4999] ";
-    //     cout << letterData.attributes.at(0).at(4999) << "\n[5000] ";
-    //     cout << letterData.attributes.at(0).at(5000) << " ";
-    //     cout << letterData.attributes.at(0).at(5001) << " ";
-    //     cout << letterData.attributes.at(0).at(5002) << " ";
-    //     cout << letterData.attributes.at(0).at(5003) << "\n";
-    //     auto results = letterRecognition.knn(letterData);
-    //     results.printOverallResult();
-    // }
-/*
     timer.start();
-    // letterRecognition.crossValidation(letterData, 5);
-    auto results = letterRecognition.knn(letterData);
-    // auto results = letterRecognition.knn(letterData, 5);
+    auto results = letterRecognition.knnMPI(letterData);
+    MPI_Barrier(MPI_COMM_WORLD);
     timer.stop();
     timer.displayTime();
-*/  
-    // results.printConfustionMatrix();
-    // results.printOverallResult();
-
-    // if (mpiWrapper.getWorldRank() == 0)
-    // {
-    //     auto results = letterRecognition.knn(letterData);
-    //     results.printOverallResult();
-    // }
+    results.printOverallResult();
 
     return 0;
 }

@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <set>
 #include <omp.h>
+#include <mpi.h>
 
 namespace
 {
@@ -133,6 +134,172 @@ auto LetterRecognition::knn(LetterData& letterData) -> Result
     }
 
     result.all = TEST_SET_SIZE;
+
+    return result;
+}
+
+auto LetterRecognition::knnMPI(LetterData& letterData) -> Result
+{
+  const uint32_t TRAIN_SET_SIZE = SET_SIZE * 0.9;
+
+  // Split letterData into train and test data
+  vector<vector<double>> testAttributeData(ATTRIBUTES);
+  vector<char> testClassData;
+  if (mpiWrapper.getWorldRank() == 0)
+  {
+      for (auto& data : testAttributeData)
+      {
+          data.reserve(SET_SIZE - TRAIN_SET_SIZE);
+      }
+      testClassData.reserve(SET_SIZE - TRAIN_SET_SIZE);
+
+      for (uint32_t i = 0; i < ATTRIBUTES; ++i)
+      {
+          auto& wholeData = letterData.attributes.at(i);
+          auto& testData = testAttributeData.at(i);
+          testData.insert(testData.end(), make_move_iterator(wholeData.begin() + TRAIN_SET_SIZE), make_move_iterator(wholeData.end()));
+          wholeData.resize(TRAIN_SET_SIZE);
+      }
+
+      testClassData.insert(testClassData.end(), make_move_iterator(letterData.letters.begin() + TRAIN_SET_SIZE), make_move_iterator(letterData.letters.end()));
+      letterData.letters.resize(TRAIN_SET_SIZE);
+  }
+
+  // Broadcast train data - letters (first adjust array size)
+  if (letterData.letters.size() < TRAIN_SET_SIZE)
+  {
+    letterData.letters.resize(TRAIN_SET_SIZE);
+  }
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (int errorCode = MPI_Bcast(letterData.letters.data(), TRAIN_SET_SIZE, MPI_CHAR, 0, MPI_COMM_WORLD);
+      errorCode != MPI_SUCCESS)
+  {
+    cout << "Failed to broadcast data! Error:" << errorCode << ". Rank: " << mpiWrapper.getWorldRank() << endl;
+  }
+  
+  // Broadcast train data - attributes (first adjust array size)
+  if (letterData.attributes.size() != ATTRIBUTES)
+  {
+    letterData.attributes.resize(ATTRIBUTES);
+    for (auto& set : letterData.attributes)
+    {
+        set.resize(TRAIN_SET_SIZE);
+    }
+  }
+  MPI_Barrier(MPI_COMM_WORLD);
+  for (uint32_t i = 0; i < ATTRIBUTES; ++i)
+  {
+    if (int errorCode = MPI_Bcast(letterData.attributes.at(i).data(), TRAIN_SET_SIZE, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        errorCode != MPI_SUCCESS)
+    {
+        cout << "Failed to broadcast data! Error:" << errorCode << ". Rank: " << mpiWrapper.getWorldRank() << endl;
+    }      
+  }
+
+  // Scatter test data
+  auto [sendCounts, displacements] = mpiWrapper.calculateDisplacements(0.1 * SET_SIZE);
+
+  vector<vector<double>> testAttributeDataSubset(ATTRIBUTES);
+  vector<char> testClassDataSubset(sendCounts.at(mpiWrapper.getWorldRank()));
+
+  for (uint32_t i = 0; i < ATTRIBUTES; ++i)
+  {
+      testAttributeDataSubset.at(i).resize(sendCounts.at(mpiWrapper.getWorldRank()));
+      MPI_Scatterv(testAttributeData.at(i).data(), sendCounts.data(), displacements.data(), MPI_DOUBLE, testAttributeDataSubset.at(i).data(), sendCounts.at(mpiWrapper.getWorldRank()), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  }
+  MPI_Scatterv(testClassData.data(), sendCounts.data(), displacements.data(), MPI_CHAR, testClassDataSubset.data(), sendCounts.at(mpiWrapper.getWorldRank()), MPI_CHAR, 0, MPI_COMM_WORLD);
+
+  LetterData testData;
+  testData.attributes = testAttributeDataSubset;
+  testData.letters = testClassDataSubset;
+  MPI_Barrier(MPI_COMM_WORLD);
+  // Run KNN
+  auto result = knnMPI(letterData, testData);
+  uint32_t correctAllSubResult[2] {result.correct, result.all};
+  // Gather results
+  vector<uint32_t> correctAll(2 * mpiWrapper.getWorldSize());
+  
+  MPI_Barrier(MPI_COMM_WORLD);
+//   MPI_Allgather(correctAllSubResult, 2, MPI_UNSIGNED, correctAll.data(), 2, MPI_UNSIGNED, MPI_COMM_WORLD);
+  MPI_Gather(correctAllSubResult, 2, MPI_UNSIGNED, correctAll.data(), 2, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+  
+  // Merge results into one result object
+  Result gatheredResult;
+  for (uint32_t i = 0; i < correctAll.size(); ++i)
+  {
+      if (i % 2 == 0)
+      {
+          gatheredResult.correct += correctAll.at(i);
+      } else {
+          gatheredResult.all += correctAll.at(i);
+      }
+  }
+
+  return gatheredResult;
+}
+
+auto LetterRecognition::knnMPI(LetterData& trainData, LetterData& testData) -> Result
+{
+    uint32_t i;
+    vector<vector<double>> dataset;
+    Result result{0, 0, {}};
+    for (i = 0; i < testData.letters.size(); ++i)
+    {
+        dataset = trainData.attributes;
+
+        // Calculate squares for every attribute
+        uint32_t j;
+        // #pragma omp parallel for shared(dataset) private(j) schedule(static)
+        for (j = 0; j < trainData.attributesAmount; ++j)
+        {
+            double testAttribute = testData.attributes.at(j).at(i);
+            uint32_t k;
+            for (k = 0; k < dataset.at(0).size(); ++k)
+            {
+                double tmp = testAttribute - dataset.at(j).at(k);
+                dataset.at(j).at(k) = tmp * tmp;
+            }
+        }
+        
+        uint32_t k;
+        double minimalSum;
+        char predictedGenre = '0';
+        // Sum each row & calculate square root
+        for (k = 0; k < trainData.letters.size(); ++k)
+        {
+            double sum = 0.0;
+            uint32_t a;
+            for (a = 0; a < ATTRIBUTES; ++a)
+            {
+                sum += dataset.at(a).at(k);
+            }
+
+            sum = sqrt(sum);
+
+            if (k == 0 || sum < minimalSum)
+            {
+                minimalSum = sum;
+                predictedGenre = trainData.letters.at(k);
+            }
+        }
+
+        auto actualGenre = testData.letters.at(i);
+        // // Add result to overall result & confusion result
+        // if (result.confusionMatrix.find(actualGenre) == result.confusionMatrix.end())
+        // {
+        //     result.confusionMatrix[actualGenre] = make_pair(0, 0);
+        // }
+
+        if (predictedGenre == actualGenre)
+        {
+            // ++result.confusionMatrix[actualGenre].first;
+            ++result.correct;
+        } else {
+            ++result.confusionMatrix[actualGenre].second;
+        }
+    }
+
+    result.all = testData.letters.size();
 
     return result;
 }

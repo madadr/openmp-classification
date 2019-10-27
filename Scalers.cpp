@@ -27,14 +27,12 @@ void Scalers::normalizeMPI(vector<vector<double>>* attributeSet, int index)
         cout << "Failed to broadcast data! Error:" << errorCode << ". Rank: " << mpiWrapper.getWorldRank() << endl;
     }
 
-    int valuesPerProcess = ROWS_AMOUNT / mpiWrapper.getWorldSize();
-
     double* set;
     if (mpiWrapper.getWorldRank() == 0)
     {
         set = attributeSet->at(index).data();
     }
-    vector<double> subset(valuesPerProcess);
+    vector<double> subset(ROWS_AMOUNT / mpiWrapper.getWorldSize() + 1);
 
     auto [sendCounts, displacements] = mpiWrapper.calculateDisplacements(ROWS_AMOUNT);
     MPI_Scatterv(set, sendCounts.data(), displacements.data(), MPI_DOUBLE, subset.data(), sendCounts.at(mpiWrapper.getWorldRank()), MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -100,14 +98,12 @@ void Scalers::standarizeMPI(vector<vector<double>>* attributeSet, int index)
         cout << "Failed to broadcast data! Error:" << errorCode << ". Rank: " << mpiWrapper.getWorldRank() << endl;
     }
 
-    int valuesPerProcess = ROWS_AMOUNT / mpiWrapper.getWorldSize();
-
     double* set;
     if (mpiWrapper.getWorldRank() == 0)
     {
         set = attributeSet->at(index).data();
     }
-    vector<double> subset(valuesPerProcess);
+    vector<double> subset(ROWS_AMOUNT / mpiWrapper.getWorldSize() + 1);
 
     auto [sendCounts, displacements] = mpiWrapper.calculateDisplacements(ROWS_AMOUNT);
     MPI_Scatterv(set, sendCounts.data(), displacements.data(), MPI_DOUBLE, subset.data(), sendCounts.at(mpiWrapper.getWorldRank()), MPI_DOUBLE, 0, MPI_COMM_WORLD);

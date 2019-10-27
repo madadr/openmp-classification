@@ -6,6 +6,8 @@
 #include <string>
 #include <cstdint>
 
+#include "MpiWrapper.hpp"
+
 namespace
 {
     using namespace std;
@@ -13,11 +15,6 @@ namespace
 
 class LetterRecognition
 {
-    uint32_t SET_SIZE = 20000;
-    uint32_t ATTRIBUTES = 16;
-    uint32_t MATRIX_SIZE = ATTRIBUTES + 1; // attributes + its class
-
-    char voteOnGenre(const set<pair<double, char>>& nearestNeighbours);
 public:
     struct LetterData
     {
@@ -28,16 +25,28 @@ public:
 
     struct Result
     {
-        uint32_t correct;
-        uint32_t all;
-        map<char, std::pair<uint32_t, uint32_t>> confusionMatrix; // first pair value = correctly recognized values; second pair value = incorrectly recognized values 
+        uint32_t correct{};
+        uint32_t all{};
+        map<char, std::pair<uint32_t, uint32_t>> confusionMatrix{}; // first pair value = correctly recognized values; second pair value = incorrectly recognized values 
 
         void printOverallResult();
         void printConfustionMatrix();
     };
 
+    LetterRecognition(MpiWrapper& mpi) : mpiWrapper{mpi} {}
     LetterData fetchData(const string& path);
     Result knn(LetterData& letterData);
+    Result knnMPI(LetterData& letterData);
     Result knn(LetterData& letterData, uint32_t neighbours);
     void crossValidation(LetterData& letterData, uint32_t neighbours);
+private:
+    uint32_t SET_SIZE = 20000;
+    uint32_t ATTRIBUTES = 16;
+    uint32_t MATRIX_SIZE = ATTRIBUTES + 1; // attributes + its class
+
+    MpiWrapper& mpiWrapper;
+
+    char voteOnGenre(const set<pair<double, char>>& nearestNeighbours);
+    void broadcastLetterData(LetterData& letterData);
+    Result knnMPI(LetterData& trainData, LetterData& testData);
 };
