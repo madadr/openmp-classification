@@ -154,7 +154,7 @@ auto LetterRecognition::knn(LetterData& letterData, uint32_t neighbours) -> Resu
 
         // Calculate squares for every attribute
         uint32_t j;
-        for (j = 0; j < dataset.size(); ++j)
+        for (j = 0; j < letterData.attributesAmount; ++j)
         {
             double testAttribute = dataset.at(j).at(i);
             uint32_t k;

@@ -13,10 +13,11 @@ namespace
 class Scalers
 {
 public:
-    Scalers(MpiWrapper& mpi) : mpiWrapper{mpi} {}
+    Scalers(MpiWrapper& mpi) : ROWS_AMOUNT{20000}, mpiWrapper{mpi} {}
     void normalize(vector<double> &attributeSet);
     void standarize(vector<vector<double>>* attributeSet, int index);
 private:
+    const int ROWS_AMOUNT;
     MpiWrapper& mpiWrapper;
 
     pair<double, double> findMinMax(vector<double> &attributeSet);

@@ -2,6 +2,8 @@
 
 #include <mpi.h>
 
+using namespace std;
+
 MpiWrapper::MpiWrapper()
 {
   MPI_Init(nullptr, nullptr);
@@ -22,4 +24,33 @@ int MpiWrapper::getWorldRank()
 int MpiWrapper::getWorldSize()
 {
   return worldSize;
+}
+
+pair<vector<int>, vector<int>> MpiWrapper::calculateDisplacements(int totalSize)
+{
+  vector<int> sendCounts;
+  vector<int> displacements;
+
+  int initSize = totalSize / worldSize;
+  for (int i = 0; i < worldSize; ++i)
+  {
+    sendCounts.push_back(initSize);
+  }
+  int sum = worldSize * initSize;
+  int i = 0;
+  while (sum != totalSize)
+  {
+    ++sendCounts.at(i % totalSize);
+    ++i;
+    ++sum;
+  }
+
+  int startIndex = 0;
+  for (int i = 0; i < worldSize; ++i)
+  {
+    displacements.push_back(startIndex);
+    startIndex += sendCounts.at(i);
+  }
+
+  return make_pair(sendCounts, displacements);
 }

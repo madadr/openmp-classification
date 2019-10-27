@@ -64,5 +64,11 @@ int main()
     // results.printConfustionMatrix();
     // results.printOverallResult();
 
+    // if (mpiWrapper.getWorldRank() == 0)
+    // {
+    //     auto results = letterRecognition.knn(letterData);
+    //     results.printOverallResult();
+    // }
+
     return 0;
 }
