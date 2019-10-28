@@ -28,25 +28,29 @@ int main()
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-    for (unsigned int i = 0; i < letterData.attributesAmount; ++i)
-    {
-        // scalers.normalizeMPI(&letterData.attributes, i);
-        scalers.standarizeMPI(&letterData.attributes, i);
-    }
+    // for (unsigned int i = 0; i < letterData.attributesAmount; ++i)
+    // {
+    //     // scalers.normalizeMPI(&letterData.attributes, i);
+    //     scalers.standarizeMPI(&letterData.attributes, i);
+    // }
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    // MPI_Barrier(MPI_COMM_WORLD);
+    // timer.start();
+    // auto results = letterRecognition.knnMPI(letterData, 5);
+    // MPI_Barrier(MPI_COMM_WORLD);
+    // timer.stop();
+    // if (mpiWrapper.getWorldRank() == 0)
+    // {
+    //     timer.displayTime();
+    //     results.printOverallResult();
+    // }
+    // timer.start();
+
+    // // Beware of runing knnMPI before this method - knnMPI modifies letterData!
     timer.start();
-    auto results = letterRecognition.knnMPI(letterData, 5);
-    MPI_Barrier(MPI_COMM_WORLD);
+    letterRecognition.crossValidationMPI(letterData, 1);
     timer.stop();
-    if (mpiWrapper.getWorldRank() == 0)
-    {
         timer.displayTime();
-        results.printOverallResult();
-        // results.printConfusionMatrix();
-    }
-
-    // letterRecognition.crossValidationMPI(letterData, 3);
 
     return 0;
 }

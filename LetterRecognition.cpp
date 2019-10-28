@@ -381,7 +381,7 @@ auto LetterRecognition::runKnn(LetterData &trainData, LetterData &testData) -> R
         }
 
         auto actualGenre = testData.letters.at(i);
-        // // Add result to overall result & confusion result
+        // Add result to overall result & confusion result
         if (result.confusionMatrix.find(actualGenre) == result.confusionMatrix.end())
         {
             result.confusionMatrix[actualGenre] = make_pair(0, 0);
@@ -527,25 +527,38 @@ void LetterRecognition::crossValidation(LetterData &letterData, uint32_t neighbo
     uint32_t all = 0;
     for (int i = 0; i < ITERATIONS; ++i)
     {
-        for (auto &attributeSet : letterData.attributes)
+        MPI_Barrier(MPI_COMM_WORLD);
+        if (type == ParallelType::OMP || mpiWrapper.getWorldRank() == 0)
         {
-            std::rotate(attributeSet.begin(), attributeSet.begin() + (SET_SIZE * 0.1), attributeSet.end());
+            for (auto &attributeSet : letterData.attributes)
+            {
+                std::rotate(attributeSet.begin(), attributeSet.begin() + (SET_SIZE * 0.1), attributeSet.end());
+            }
+            std::rotate(letterData.letters.begin(), letterData.letters.begin() + (SET_SIZE * 0.1), letterData.letters.end());
         }
-        std::rotate(letterData.letters.begin(), letterData.letters.begin() + (SET_SIZE * 0.1), letterData.letters.end());
         Result result;
         if (type == ParallelType::OMP)
         {
             result = knnOMP(letterData, neighbours);
         } else {
+            MPI_Barrier(MPI_COMM_WORLD);
+            auto letterDataCopy = letterData; // Hack, because of letterData is modified by KNN 
             result = knnMPI(letterData, neighbours);
+            letterData = letterDataCopy;      // Hack, because of letterData is modified by KNN 
         }
-        correct += result.correct;
-        all += result.all;
-        cout << "Subset " << i + 1 << " results: " << endl;
-        result.printOverallResult();
+        if (type == ParallelType::OMP || mpiWrapper.getWorldRank() == 0)
+        {
+            correct += result.correct;
+            all += result.all;
+            cout << "Subset " << i + 1 << " results: " << endl;
+            result.printOverallResult();
+        }
     }
 
-    cout << "Overall cross validation results: " << endl;
-    Result result{correct, all, {}};
-    result.printOverallResult();
+    if (type == ParallelType::OMP || mpiWrapper.getWorldRank() == 0)
+    {
+        cout << "Overall cross validation results: " << endl;
+        Result result{correct, all, {}};
+        result.printOverallResult();
+    }
 }
