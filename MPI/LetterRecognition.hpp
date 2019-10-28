@@ -35,16 +35,11 @@ public:
 
     LetterRecognition(MpiWrapper &mpi) : mpiWrapper{mpi} {}
     LetterData fetchData(const string &path);
-    Result knnOMP(LetterData &letterData);
-    Result knnOMP(LetterData &letterData, uint32_t neighbours);
     Result knnMPI(LetterData &letterData);
     Result knnMPI(LetterData &letterData, uint32_t neighbours);
-    void crossValidationOMP(LetterData &letterData, uint32_t neighbours);
     void crossValidationMPI(LetterData &letterData, uint32_t neighbours);
 
 private:
-    enum class ParallelType {OMP, MPI};
-
     uint32_t SET_SIZE = 20000;
     uint32_t ATTRIBUTES = 16;
     uint32_t MATRIX_SIZE = ATTRIBUTES + 1; // attributes + its class
@@ -55,5 +50,4 @@ private:
     void broadcastLetterData(LetterData &letterData);
     Result runKnn(LetterData &trainData, LetterData &testData);
     Result runKnn(LetterData &trainData, LetterData &testData, uint32_t neighbours);
-    void crossValidation(LetterData &letterData, uint32_t neighbours, ParallelType type);
 };

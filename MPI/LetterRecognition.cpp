@@ -7,7 +7,6 @@
 #include <cmath>
 #include <cstdint>
 #include <set>
-#include <omp.h>
 #include <mpi.h>
 
 namespace
@@ -65,162 +64,6 @@ void LetterRecognition::Result::printConfustionMatrix()
         double percentage = static_cast<double>(entry.second.first) / static_cast<double>(entry.second.first + entry.second.second) * 100.0;
         std::cout << "Letter: " << entry.first << ",\tpercentage: " << percentage << "%,\tcorrect: " << entry.second.first << ",\tincorrect: " << entry.second.second << std::endl;
     }
-}
-
-auto LetterRecognition::knnOMP(LetterData &letterData) -> Result
-{
-    const uint32_t TRAIN_SET_SIZE = SET_SIZE * 0.9;
-    const uint32_t TEST_SET_SIZE = SET_SIZE - TRAIN_SET_SIZE;
-
-    uint32_t i;
-    vector<vector<double>> dataset;
-    Result result{0, 0, {}};
-    // #pragma omp parallel for shared(result) private(i, dataset) schedule(static) num_threads(2)
-    #pragma omp parallel for shared(result) private(i, dataset) schedule(static)
-    for (i = TRAIN_SET_SIZE; i < TRAIN_SET_SIZE + TEST_SET_SIZE; ++i)
-    {
-        // Copy dataset for each test row
-        dataset = letterData.attributes;
-
-        // Calculate squares for every attribute
-        uint32_t j;
-        // #pragma omp parallel for shared(dataset) private(j) schedule(static)
-        for (j = 0; j < letterData.attributesAmount; ++j)
-        {
-            double testAttribute = dataset.at(j).at(i);
-            uint32_t k;
-            for (k = 0; k < TRAIN_SET_SIZE; ++k)
-            {
-                double tmp = testAttribute - dataset.at(j).at(k);
-                dataset.at(j).at(k) = tmp * tmp;
-            }
-        }
-
-        uint32_t k;
-        double minimalSum;
-        char predictedGenre = '0';
-        // Sum each row & calculate square root
-        // #pragma omp parallel for shared(minimalSum, predictedGenre) private(k) schedule(static)
-        for (k = 0; k < TRAIN_SET_SIZE; ++k)
-        {
-            double sum = 0.0;
-            uint32_t a;
-            for (a = 0; a < ATTRIBUTES; ++a)
-            {
-                sum += dataset.at(a).at(k);
-            }
-
-            sum = sqrt(sum);
-
-            if (k == 0 || sum < minimalSum)
-            {
-                minimalSum = sum;
-                predictedGenre = letterData.letters.at(k);
-            }
-        }
-
-        auto actualGenre = letterData.letters.at(i);
-        // Add result to overall result & confusion result
-        if (result.confusionMatrix.find(actualGenre) == result.confusionMatrix.end())
-        {
-            result.confusionMatrix[actualGenre] = make_pair(0, 0);
-        }
-
-        if (predictedGenre == actualGenre)
-        {
-            ++result.confusionMatrix[actualGenre].first;
-            ++result.correct;
-        }
-        else
-        {
-            ++result.confusionMatrix[actualGenre].second;
-        }
-    }
-
-    result.all = TEST_SET_SIZE;
-
-    return result;
-}
-
-auto LetterRecognition::knnOMP(LetterData &letterData, uint32_t neighbours) -> Result
-{
-    const uint32_t TRAIN_SET_SIZE = SET_SIZE * 0.9;
-    const uint32_t TEST_SET_SIZE = SET_SIZE - TRAIN_SET_SIZE;
-
-    uint32_t i;
-    vector<vector<double>> dataset;
-    Result result{0, 0, {}};
-    // #pragma omp parallel for shared(result) private(i, dataset) schedule(static) num_threads(2)
-    #pragma omp parallel for shared(result) private(i, dataset) schedule(static)
-    for (i = TRAIN_SET_SIZE; i < TRAIN_SET_SIZE + TEST_SET_SIZE; ++i)
-    {
-        // Copy dataset for each test row
-        dataset = letterData.attributes;
-
-        // Calculate squares for every attribute
-        uint32_t j;
-        for (j = 0; j < letterData.attributesAmount; ++j)
-        {
-            double testAttribute = dataset.at(j).at(i);
-            uint32_t k;
-            for (k = 0; k < TRAIN_SET_SIZE; ++k)
-            {
-                double tmp = testAttribute - dataset.at(j).at(k);
-                dataset.at(j).at(k) = tmp * tmp;
-            }
-        }
-
-        set<pair<double, char>> nearestNeighbours;
-        uint32_t k;
-        // Sum each row & calculate square root
-        for (k = 0; k < TRAIN_SET_SIZE; ++k)
-        {
-            double sum = 0.0;
-            char genre = '0';
-            uint32_t a;
-            for (a = 0; a < ATTRIBUTES; ++a)
-            {
-                sum += dataset.at(a).at(k);
-            }
-
-            sum = sqrt(sum);
-            genre = letterData.letters.at(k);
-
-            if (k < neighbours)
-            {
-                nearestNeighbours.emplace(make_pair(sum, genre));
-            }
-            else if ((*--nearestNeighbours.end()).first > sum)
-            {
-                nearestNeighbours.erase(--nearestNeighbours.end());
-                nearestNeighbours.emplace(make_pair(sum, genre));
-            }
-        }
-
-        // Vote/decide which neighbour
-        auto predictedGenre = voteOnGenre(nearestNeighbours);
-        auto actualGenre = letterData.letters.at(i);
-        // Add result to overall result & confusion result
-        if (result.confusionMatrix.find(actualGenre) == result.confusionMatrix.end())
-        {
-            result.confusionMatrix[actualGenre] = make_pair(0, 0);
-        }
-
-        // std::cout << "Actual:\t" << actualGenre << ", predicted\t" << predictedGenre << std::endl;
-        if (predictedGenre == actualGenre)
-        {
-            ++result.confusionMatrix[actualGenre].first;
-            ++result.correct;
-        }
-        else
-        {
-            ++result.confusionMatrix[actualGenre].second;
-        }
-    }
-
-    result.all = TEST_SET_SIZE;
-
-    return result;
 }
 
 auto LetterRecognition::knnMPI(LetterData &letterData) -> Result
@@ -498,7 +341,6 @@ char LetterRecognition::voteOnGenre(const set<pair<double, char>> &nearestNeighb
     uint32_t chosenCharOccurences = 0;
     for (const auto &entry : occurencesMap)
     {
-        // cout << entry.first << ":" << entry.second << endl;
         if (entry.second > chosenCharOccurences)
         {
             chosenChar = entry.first;
@@ -509,17 +351,7 @@ char LetterRecognition::voteOnGenre(const set<pair<double, char>> &nearestNeighb
     return chosenChar;
 }
 
-void LetterRecognition::crossValidationOMP(LetterData &letterData, uint32_t neighbours)
-{
-    crossValidation(letterData, neighbours, ParallelType::OMP);
-}
-
 void LetterRecognition::crossValidationMPI(LetterData &letterData, uint32_t neighbours)
-{
-    crossValidation(letterData, neighbours, ParallelType::MPI);
-}
-
-void LetterRecognition::crossValidation(LetterData &letterData, uint32_t neighbours, ParallelType type)
 {
     const int ITERATIONS = 10;
     cout << "Cross validating for " << ITERATIONS << " subsets..." << endl;
@@ -528,7 +360,7 @@ void LetterRecognition::crossValidation(LetterData &letterData, uint32_t neighbo
     for (int i = 0; i < ITERATIONS; ++i)
     {
         MPI_Barrier(MPI_COMM_WORLD);
-        if (type == ParallelType::OMP || mpiWrapper.getWorldRank() == 0)
+        if (mpiWrapper.getWorldRank() == 0)
         {
             for (auto &attributeSet : letterData.attributes)
             {
@@ -536,17 +368,12 @@ void LetterRecognition::crossValidation(LetterData &letterData, uint32_t neighbo
             }
             std::rotate(letterData.letters.begin(), letterData.letters.begin() + (SET_SIZE * 0.1), letterData.letters.end());
         }
-        Result result;
-        if (type == ParallelType::OMP)
-        {
-            result = knnOMP(letterData, neighbours);
-        } else {
-            MPI_Barrier(MPI_COMM_WORLD);
-            auto letterDataCopy = letterData; // Hack, because of letterData is modified by KNN 
-            result = knnMPI(letterData, neighbours);
-            letterData = letterDataCopy;      // Hack, because of letterData is modified by KNN 
-        }
-        if (type == ParallelType::OMP || mpiWrapper.getWorldRank() == 0)
+        MPI_Barrier(MPI_COMM_WORLD);
+        auto letterDataCopy = letterData; // Hack, because of letterData is modified by KNN 
+        auto result = knnMPI(letterData, neighbours);
+        letterData = letterDataCopy;      // Hack, because of letterData is modified by KNN 
+       
+        if (mpiWrapper.getWorldRank() == 0)
         {
             correct += result.correct;
             all += result.all;
@@ -555,7 +382,7 @@ void LetterRecognition::crossValidation(LetterData &letterData, uint32_t neighbo
         }
     }
 
-    if (type == ParallelType::OMP || mpiWrapper.getWorldRank() == 0)
+    if (mpiWrapper.getWorldRank() == 0)
     {
         cout << "Overall cross validation results: " << endl;
         Result result{correct, all, {}};

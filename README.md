@@ -1,10 +1,10 @@
 # Classification app
-- Solution for classification problem solved in two languages: C++ (parallel with OpenMP) and Python (with sklearn).
+- Solution for classification problem solved in two languages: C++ (parallel with OpenMP and MPI) and Python (with sklearn).
 - Letter recognition dataset (UCI) - https://archive.ics.uci.edu/ml/datasets/Letter+Recognition
 - KNN algorithm was used with 2 data preparation variants: data minmax normalization and linear standarization.
 
 ## Environment preparation
-### C++ & OpenMP
+### C++ & OpenMP & MPI
 #### Install g++
 ```
 sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
@@ -16,6 +16,30 @@ sudo apt-get install g++
 #### Install OpenMP
 ```
 sudo apt-get install libomp-dev
+```
+
+#### Install MPI (Open MPI)
+##### Recommended way
+```
+# Download MPI from https://www.open-mpi.org/software/ompi/v4.0/
+wget https://download.open-mpi.org/release/open-mpi/v4.0/openmpi-4.0.2.tar.gz
+tar -xvf openmpi-4.0.2.tar.gz
+cd openmpi-4.0.2
+# Follow instructions in INSTALL file
+sudo ./configure
+sudo make all install
+
+# Before executing app
+echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope # When receiving CMA support is not available due to restrictive ptrace settings when executing mpirun/mpiexec
+```
+
+##### Alternative way
+```
+sudo apt-get update
+sudo apt-get upgrade
+sudo apt-get install libopenmpi-dev
+sudo apt-get install g++
+echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope # When receiving CMA support is not available due to restrictive ptrace settings when executing mpirun/mpiexec
 ```
 
 ### Python
