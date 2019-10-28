@@ -16,7 +16,7 @@ int main()
     LetterRecognition letterRecognition;
     Scalers scalers;
     StopWatch timer;
-    const string DATASET_PATH{"csv/letter-recognition.csv"};
+    const string DATASET_PATH{"../csv/letter-recognition.csv"};
 
     auto letterData = letterRecognition.fetchData(DATASET_PATH);
 
@@ -29,16 +29,16 @@ int main()
         scalers.standarize(letterData.attributes.at(i));
     }
 
-    timer.start();
+    // timer.start();
 
-    letterRecognition.crossValidation(letterData, 5);
-    // auto results = letterRecognition.knn(letterData);
+    // letterRecognition.crossValidation(letterData, 5);
+    auto results = letterRecognition.knn(letterData);
     // auto results = letterRecognition.knn(letterData, 5);
-    timer.stop();
+    // timer.stop();
     // timer.displayTime();
     
     // results.printConfustionMatrix();
-    // results.printOverallResult();
+    results.printOverallResult();
 
     return 0;
 }
