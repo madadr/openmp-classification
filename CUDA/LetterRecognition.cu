@@ -37,7 +37,7 @@ namespace
 
     namespace GPU
     {
-        __device__ void calculateSquareRoots(double* dataset, int testRowIndex)
+        __device__ void calculateSquares(double* dataset, int testRowIndex)
         {
             int thisThreadStart = threadIdx.x * TRAIN_SET_SIZE / blockDim.x + blockIdx.x * ROWS_AMOUNT;
             const int nextThreadStart = (threadIdx.x + 1) * TRAIN_SET_SIZE / blockDim.x + blockIdx.x * ROWS_AMOUNT;
@@ -51,10 +51,45 @@ namespace
                 dataset[index] = tmp * tmp;
             }
         }
+    
+        __device__ void calculateSums(double* dataset)
+        {
+            if (blockIdx.x == 0)
+            {
+                return;
+            }
+
+            int thisThreadStart = threadIdx.x * TRAIN_SET_SIZE / blockDim.x + blockIdx.x * ROWS_AMOUNT;
+            const int nextThreadStart = (threadIdx.x + 1) * TRAIN_SET_SIZE / blockDim.x + blockIdx.x * ROWS_AMOUNT;
+
+            // // Sum each row & calculate square root
+            for (uint32_t k = thisThreadStart; k < nextThreadStart; ++k)
+            {
+                atomicAdd(&dataset[k], dataset[blockIdx.x * ROWS_AMOUNT + k]);
+            }
+        }
+    
+        __device__ void calculateSquaredRoots(double* dataset)
+        {
+            int thisThreadStart = blockIdx.x * TRAIN_SET_SIZE / gridDim.x + blockIdx.x * ROWS_AMOUNT;
+            const int nextThreadStart = (blockIdx.x + 1) * TRAIN_SET_SIZE / gridDim.x + blockIdx.x * ROWS_AMOUNT;
+
+            // // Sum each row & calculate square root
+            for (uint32_t k = thisThreadStart; k < nextThreadStart; ++k)
+            {
+                dataset[k] = sqrt(dataset[k]);
+            }
+        }
 
         __global__ void knn(double* dataset, int testRowIndex, char* devLetters)
         {
-            calculateSquareRoots(dataset, testRowIndex);
+            calculateSquares(dataset, testRowIndex);
+            __syncthreads();
+            calculateSums(dataset);
+            __syncthreads();
+            calculateSquaredRoots(dataset);
+            __syncthreads();
+            int predictedLetterIndex = 0;
             
             // uint32_t k;
             // double minimalSum;
@@ -164,6 +199,7 @@ auto LetterRecognition::knn(LetterData& letterData) -> Result
         HANDLE_ERROR(cudaMemcpy(dataset, devAttributes, ATTRIBUTES_AMOUNT * ROWS_AMOUNT * sizeof(double), cudaMemcpyDeviceToDevice));
 
         GPU::knn<<<ATTRIBUTES_AMOUNT, BLOCK_DIM>>>(dataset, i, devLetters);
+        cudaDeviceSynchronize();
         HANDLE_ERROR(cudaFree(dataset));
     }
 
