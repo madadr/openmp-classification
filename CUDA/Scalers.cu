@@ -107,7 +107,108 @@ namespace
             transformValues(devAttributes, &min, &max);
         }
     }
-    
+
+    namespace Standarization
+    {
+        __device__ void findLocalAverage(double* devAttributes, double* averages)
+        {
+            int thisThreadStart = threadIdx.x * ROWS_AMOUNT / blockDim.x + blockIdx.x * ROWS_AMOUNT;
+            const int nextThreadStart = (threadIdx.x + 1) * ROWS_AMOUNT / blockDim.x + blockIdx.x * ROWS_AMOUNT;
+            double localAverage = 0;
+            for (int row = thisThreadStart; row < nextThreadStart; ++row)
+            {
+                localAverage += devAttributes[row];
+            }
+
+            averages[threadIdx.x] = localAverage / (nextThreadStart - thisThreadStart);
+        }
+
+        __device__ void sumLocalAverages(double* average, double* localAverage)
+        {
+            if (threadIdx.x == 0)
+            {
+                *average = 0;
+            }
+            __syncthreads();
+
+            atomicAdd(average, localAverage[threadIdx.x]);
+        }
+
+        __device__ void findLocalVariation(double* devAttributes, double* variations, double* average)
+        {
+            int thisThreadStart = threadIdx.x * ROWS_AMOUNT / blockDim.x + blockIdx.x * ROWS_AMOUNT;
+            const int nextThreadStart = (threadIdx.x + 1) * ROWS_AMOUNT / blockDim.x + blockIdx.x * ROWS_AMOUNT;
+            double localVariation = 0;
+            for (int row = thisThreadStart; row < nextThreadStart; ++row)
+            {
+                auto tmp = devAttributes[row] - *average;
+                localVariation += tmp * tmp;
+            }
+
+            variations[threadIdx.x] = localVariation;
+        }
+
+        __device__ void sumLocalVariations(double* variation, double* localVariations)
+        {
+            if (threadIdx.x == 0)
+            {
+                *variation = 0;
+            }
+            __syncthreads();
+
+            atomicAdd(variation, localVariations[threadIdx.x]);
+        }
+        
+        __device__ void transformValues(double* devAttributes, double* average, double* variation)
+        {
+            int thisThreadStart = threadIdx.x * ROWS_AMOUNT / blockDim.x + blockIdx.x * ROWS_AMOUNT;
+            const int nextThreadStart = (threadIdx.x + 1) * ROWS_AMOUNT / blockDim.x + blockIdx.x * ROWS_AMOUNT;
+            for (int row = thisThreadStart; row < nextThreadStart; ++row)
+            {
+                devAttributes[row] = (devAttributes[row] - *average) / *variation;
+            }
+        }
+
+        __global__ void standarize(double* devAttributes)
+        {
+            __shared__ double average;
+            {
+            __shared__ double localAverage[BLOCK_DIM];
+            findLocalAverage(devAttributes, localAverage);
+            __syncthreads();
+            sumLocalAverages(&average, localAverage);
+            __syncthreads();
+            // ------------------------------------------------------------------------------------
+            // TODO: consider moving to sumLocalAverages and renaming method to findAverage
+            if (threadIdx.x == 0)
+            {
+                average /= blockDim.x;
+            }
+            __syncthreads();
+            // ------------------------------------------------------------------------------------
+            } // scoped shared memory variable localAverage to save memory
+
+            __shared__ double variation;
+            {
+                __shared__ double localVariation[BLOCK_DIM];
+                findLocalVariation(devAttributes, localVariation, &average);
+                __syncthreads();
+                sumLocalVariations(&variation, localVariation);
+                __syncthreads();
+                // ------------------------------------------------------------------------------------
+                // TODO: consider moving to sumLocalVariations and renaming method to findVariation
+                if (threadIdx.x == 0)
+                {
+                    variation /= ROWS_AMOUNT;
+                    variation = sqrt(variation);
+                }
+                __syncthreads();
+                // ------------------------------------------------------------------------------------
+                } // scoped shared memory variable localVariation to save memory
+
+            transformValues(devAttributes, &average, &variation);
+        }
+    }
 }
 
 void Scalers::normalize(vector<double>& attributesValues)
@@ -127,39 +228,7 @@ void Scalers::standarize(vector<double>& attributesValues)
 	double* devAttributes = nullptr;
 	HANDLE_ERROR(cudaMalloc(&devAttributes, attributesValues.size() * sizeof(double)));
     HANDLE_ERROR(cudaMemcpy(devAttributes, attributes, attributesValues.size() * sizeof(double), cudaMemcpyHostToDevice));
-	Normalization::normalize<<<ATTRIBUTES_AMOUNT, BLOCK_DIM>>>(devAttributes);
+	Standarization::standarize<<<ATTRIBUTES_AMOUNT, BLOCK_DIM>>>(devAttributes);
 	HANDLE_ERROR(cudaMemcpy(attributes, devAttributes, attributesValues.size() * sizeof(double), cudaMemcpyDeviceToHost));
     cudaFree(devAttributes);
 }
-
-// void Scalers::standarize(vector<double> &attributeSet)
-// {
-//     const auto averageVariation = findAverageAndVariation(attributeSet);
-
-//     for (auto& value : attributeSet)
-//     {
-//         value = (value - averageVariation.first) / averageVariation.second;
-//     }
-// }
-
-// pair<double, double> Scalers::findAverageAndVariation(vector<double> &attributeSet)
-// {
-//     double average{};
-    
-//     for (const auto& value : attributeSet)
-//     {
-//         average += value;
-//     }
-//     average /= attributeSet.size();
-
-//     double variation{};
-//     for (const auto& value : attributeSet)
-//     {
-//         auto tmp = value - average;
-//         variation += tmp * tmp;
-//     }
-//     variation /= attributeSet.size(); // variance
-//     variation = sqrt(variation);
-
-//     return std::make_pair(average, variation);
-// }
