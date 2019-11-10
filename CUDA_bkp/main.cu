@@ -89,7 +89,7 @@ __global__ void standarizeCUDA(double *tab, int rows, int columns,  double *aver
     int attr = blockIdx.x;
     int blockSize = blockDim.x;
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-    printf("Block dim: %d   Block number: %d    Thread number: %d    i: %d   att num %d\n", blockSize, attr, tid, i, i%16);
+    // printf("Block dim: %d   Block number: %d    Thread number: %d    i: %d   att num %d\n", blockSize, attr, tid, i, i%16);
 
     for (int i = tid*rows/blockSize + attr*rows; i < (tid+1)*rows/blockSize + attr*rows; i++) {
         tab[i] = (tab[i] - average[attr]) / variation[attr];
@@ -137,10 +137,10 @@ int main()
     fulfillAverageVariationArray<<<1,1>>>(average, variation);
 
     stopWatch.start();
-    // minMax<<<16,32>>>( data, 20000, 16, min, max );
-    // normalizeCUDA<<<16,16>>>( data, 20000, 16, min, max, normalizedData);
-    findAverageVariation<<<16,1>>>( data, 20000, 16, average, variation );
-    standarizeCUDA<<<16,16>>>( data, 20000, 16, average, variation);
+    minMax<<<16,10>>>( data, 20000, 16, min, max );
+    normalizeCUDA<<<16,16>>>( data, 20000, 16, min, max, normalizedData);
+    // findAverageVariation<<<16,1>>>( data, 20000, 16, average, variation );
+    // standarizeCUDA<<<16,16>>>( data, 20000, 16, average, variation);
 
     // Skopiowanie tablicy c z GPU na CPU
     HANDLE_ERROR( cudaMemcpy( mins, min, 16 * sizeof(double), cudaMemcpyDeviceToHost ) );
@@ -157,12 +157,12 @@ int main()
         cout<<averageOfAttributes[i]<<"    "<<variationOfAttributes[i]<<endl;
     }
 
-    // for (int i=0; i<16; i++) {
-    //     cout<<mins[i]<<"  "<<maxes[i]<<endl;
-    // }
+    for (int i=0; i<16; i++) {
+        cout<<mins[i]<<"  "<<maxes[i]<<endl;
+    }
 
     for (int i=0; i<16; i++) {
-        cout<<"Standarized: "<<standarizedAttributes[i]<<endl;
+        // cout<<"Standarized: "<<standarizedAttributes[i]<<endl;
     }
     
     stopWatch.displayTime();

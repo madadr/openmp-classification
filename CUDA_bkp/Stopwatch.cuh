@@ -1,6 +1,6 @@
 #pragma once
 
-class Stopwatch
+class StopWatch
 {
 private:
     cudaEvent_t startTime;

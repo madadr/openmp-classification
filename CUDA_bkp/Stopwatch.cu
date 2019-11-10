@@ -11,21 +11,21 @@ static void HandleError(cudaError_t err, const char *file, int line)
     }
 }
 
-void Stopwatch::start()
+void StopWatch::start()
 {
     HANDLE_ERROR(cudaEventCreate(&startTime));
     HANDLE_ERROR(cudaEventCreate(&stopTime));
     HANDLE_ERROR(cudaEventRecord(startTime, 0));
 }
 
-void Stopwatch::stop()
+void StopWatch::stop()
 {
     HANDLE_ERROR(cudaEventRecord(stopTime, 0));
     HANDLE_ERROR(cudaEventSynchronize (stopTime) );
 }
 
-void Stopwatch::displayTime()
+void StopWatch::displayTime()
 {
     HANDLE_ERROR(cudaEventElapsedTime(&time, startTime, stopTime) );
-    std::cout << "Elapsed time: " << time << " ms"<< std::endl;
+    std::cout << "Elapsed time: " << time << std::endl;
 }
