@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <iostream>
 
-#include "LetterRecognition.hpp"
+#include "LetterRecognition.cuh"
 #include "Scalers.cuh"
 #include "Stopwatch.cuh"
 // #include "Stopwatch.hpp"
@@ -23,6 +23,7 @@ int main()
     Stopwatch timer;
     const string DATASET_PATH{"../csv/letter-recognition.csv"};
 
+
     auto letterData = letterRecognition.fetchData(DATASET_PATH);
 
     timer.start();
@@ -31,7 +32,10 @@ int main()
     timer.stop();
     timer.displayTime();
 
-    // auto results = letterRecognition.knn(letterData);
+    timer.start();
+    auto results = letterRecognition.knn(letterData);
+    timer.stop();
+    timer.displayTime();
 
     // letterRecognition.crossValidation(letterData, 5);
     // auto results = letterRecognition.knn(letterData, 5);

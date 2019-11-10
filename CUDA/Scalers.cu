@@ -28,7 +28,7 @@ namespace
 	const uint32_t ROWS_AMOUNT = 20000;
     const uint32_t ATTRIBUTES_AMOUNT = 16;
     
-    namespace Normalization
+    namespace NormalizationGPU
     {
         __device__ void findLocalMinMax(double* devAttributes, double* mins, double* maxes)
         {
@@ -108,7 +108,7 @@ namespace
         }
     }
 
-    namespace Standarization
+    namespace StandarizationGPU
     {
         __device__ void findLocalAverage(double* devAttributes, double* averages)
         {
@@ -217,9 +217,9 @@ void Scalers::normalize(vector<double>& attributesValues)
 	double* devAttributes = nullptr;
 	HANDLE_ERROR(cudaMalloc(&devAttributes, attributesValues.size() * sizeof(double)));
     HANDLE_ERROR(cudaMemcpy(devAttributes, attributes, attributesValues.size() * sizeof(double), cudaMemcpyHostToDevice));
-	Normalization::normalize<<<ATTRIBUTES_AMOUNT, BLOCK_DIM>>>(devAttributes);
+	NormalizationGPU::normalize<<<ATTRIBUTES_AMOUNT, BLOCK_DIM>>>(devAttributes);
 	HANDLE_ERROR(cudaMemcpy(attributes, devAttributes, attributesValues.size() * sizeof(double), cudaMemcpyDeviceToHost));
-    cudaFree(devAttributes);
+    HANDLE_ERROR(cudaFree(devAttributes));
 }
 
 void Scalers::standarize(vector<double>& attributesValues)
@@ -228,7 +228,7 @@ void Scalers::standarize(vector<double>& attributesValues)
 	double* devAttributes = nullptr;
 	HANDLE_ERROR(cudaMalloc(&devAttributes, attributesValues.size() * sizeof(double)));
     HANDLE_ERROR(cudaMemcpy(devAttributes, attributes, attributesValues.size() * sizeof(double), cudaMemcpyHostToDevice));
-	Standarization::standarize<<<ATTRIBUTES_AMOUNT, BLOCK_DIM>>>(devAttributes);
+	StandarizationGPU::standarize<<<ATTRIBUTES_AMOUNT, BLOCK_DIM>>>(devAttributes);
 	HANDLE_ERROR(cudaMemcpy(attributes, devAttributes, attributesValues.size() * sizeof(double), cudaMemcpyDeviceToHost));
-    cudaFree(devAttributes);
+    HANDLE_ERROR(cudaFree(devAttributes));
 }
