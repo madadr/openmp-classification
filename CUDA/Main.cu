@@ -26,11 +26,11 @@ int main()
 
     auto letterData = letterRecognition.fetchData(DATASET_PATH);
 
-    timer.start();
+    // timer.start();
     scalers.normalize(letterData.attributes);
     // scalers.standarize(letterData.attributes);
-    timer.stop();
-    timer.displayTime();
+    // timer.stop();
+    // timer.displayTime();
 
     timer.start();
     auto results = letterRecognition.knn(letterData);

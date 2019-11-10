@@ -4,7 +4,6 @@
 #include "device_launch_parameters.h"
 
 #include <iostream>
-// #include <algorithm>
 #include <fstream>
 #include <sstream>
 #include <cmath>
@@ -46,9 +45,8 @@ namespace
             double testAttribute = dataset[blockIdx.x * ROWS_AMOUNT + testRowIndex];
             for (uint32_t k = thisThreadStart; k < nextThreadStart; ++k)
             {
-                int index = blockIdx.x * ROWS_AMOUNT + k;
-                double tmp = testAttribute - dataset[index];
-                dataset[index] = tmp * tmp;
+                double tmp = testAttribute - dataset[k];
+                dataset[k] = tmp * tmp;
             }
         }
     
@@ -59,29 +57,85 @@ namespace
                 return;
             }
 
+            int firstAttributeIndex = threadIdx.x * TRAIN_SET_SIZE / blockDim.x;
+
             int thisThreadStart = threadIdx.x * TRAIN_SET_SIZE / blockDim.x + blockIdx.x * ROWS_AMOUNT;
             const int nextThreadStart = (threadIdx.x + 1) * TRAIN_SET_SIZE / blockDim.x + blockIdx.x * ROWS_AMOUNT;
 
             // // Sum each row & calculate square root
             for (uint32_t k = thisThreadStart; k < nextThreadStart; ++k)
             {
-                atomicAdd(&dataset[k], dataset[blockIdx.x * ROWS_AMOUNT + k]);
+                atomicAdd(&(dataset[firstAttributeIndex++]), dataset[k]);
             }
         }
     
         __device__ void calculateSquaredRoots(double* dataset)
         {
-            int thisThreadStart = blockIdx.x * TRAIN_SET_SIZE / gridDim.x + blockIdx.x * ROWS_AMOUNT;
-            const int nextThreadStart = (blockIdx.x + 1) * TRAIN_SET_SIZE / gridDim.x + blockIdx.x * ROWS_AMOUNT;
+            // Split only first row (train data) into blocks; then rows splitted into block split into threads
+            int thisThreadStart = threadIdx.x * TRAIN_SET_SIZE / gridDim.x / blockDim.x + blockIdx.x * TRAIN_SET_SIZE / gridDim.x;
+            int nextThreadStart = (threadIdx.x + 1) * TRAIN_SET_SIZE / gridDim.x / blockDim.x + blockIdx.x * TRAIN_SET_SIZE / gridDim.x;
 
-            // // Sum each row & calculate square root
+            // // TODO: fix (done above?)
+            // int thisThreadStart = blockIdx.x * TRAIN_SET_SIZE / gridDim.x;
+            // const int nextThreadStart = (blockIdx.x + 1) * TRAIN_SET_SIZE / gridDim.x;
+
+            // Sum each row & calculate square root
             for (uint32_t k = thisThreadStart; k < nextThreadStart; ++k)
             {
                 dataset[k] = sqrt(dataset[k]);
             }
         }
 
-        __global__ void knn(double* dataset, int testRowIndex, char* devLetters)
+        // __device__ void findLocalMinSumWithIndex(double* dataset, double* mins, int* indexes)
+        // {
+        //     int thisThreadStart = threadIdx.x * ROWS_AMOUNT / blockDim.x + blockIdx.x * ROWS_AMOUNT;
+        //     const int nextThreadStart = (threadIdx.x + 1) * ROWS_AMOUNT / blockDim.x + blockIdx.x * ROWS_AMOUNT;
+        //     double localMin = devAttributes[thisThreadStart];
+        //     double localMax = localMin;
+        //     __syncthreads();
+        //     for (int row = thisThreadStart; row < nextThreadStart; ++row)
+        //     {
+        //         auto value = devAttributes[row];
+        //         if (value < localMin)
+        //         {
+        //             localMin = value;
+        //         }
+                
+        //         if (value > localMax)
+        //         {
+        //             localMax = value;
+        //         }
+        //     }
+
+        //     mins[threadIdx.x] = localMin;
+        //     maxes[threadIdx.x] = localMax;
+        // }
+
+        // __device__ void findMinSumWithIndex(double* min, double* minIndex, double* localMin, int* localMinIndices)
+        // {
+        //     if (threadIdx.x == 0)
+        //     {
+        //         *min = localMin[0];
+        //         *max = localMax[0];
+        //     }
+        //     __syncthreads();
+
+        //     for (int i = 0; i < blockDim.x; ++i)
+        //     {
+        //         auto localMinValue = localMin[i];
+        //         if (*min > localMinValue)
+        //         {
+        //             *min = localMinValue;
+        //         }
+        //         auto localMaxValue = localMax[i];
+        //         if (*max < localMaxValue)
+        //         {
+        //             *max = localMaxValue;
+        //         }
+        //     }
+        // }
+
+        __global__ void knn(double* dataset, int testRowIndex, char* predictedGenre)
         {
             calculateSquares(dataset, testRowIndex);
             __syncthreads();
@@ -89,8 +143,20 @@ namespace
             __syncthreads();
             calculateSquaredRoots(dataset);
             __syncthreads();
-            int predictedLetterIndex = 0;
-            
+
+            // __shared__ double min;
+            // __shared__ int minIndex;
+            // {
+            // __shared__ double localMin[BLOCK_DIM];
+            // __shared__ double localMinIndixes[BLOCK_DIM];
+            // findLocalMinMax(devAttributes, localMin, localMax);
+            // __syncthreads();
+
+            // findMinMax(&min, &max, localMin, localMax);
+            // __syncthreads();
+            // } // scoped shared memory variable localMin and localMax to save memory
+
+
             // uint32_t k;
             // double minimalSum;
             // char predictedGenre = '0';
@@ -111,13 +177,6 @@ namespace
             //         minimalSum = sum;
             //         predictedGenre = letterData.letters.at(k);
             //     }
-            // }
-    
-            // auto actualGenre = letterData.letters.at(i);
-    
-            // if (predictedGenre == actualGenre)
-            // {
-            //     ++result.correct;
             // }
         }
     }
@@ -163,9 +222,9 @@ auto LetterRecognition::fetchData(const string& path) -> LetterData
     for (auto& column : matrix)
     {
         while (column.size() > 0)
-        {            
+        {
+            // Always save memory. Anywhere. Always.
             data.attributes.push_back(column[0]);
-            // assert(!column.empty());
             column.front() = std::move(column.back());
             column.pop_back();
         }
@@ -183,33 +242,41 @@ void LetterRecognition::Result::printOverallResult()
 
 auto LetterRecognition::knn(LetterData& letterData) -> Result
 {
-    char* devLetters;
-	HANDLE_ERROR(cudaMalloc(&devLetters, letterData.letters.size() * sizeof(char)));
-    HANDLE_ERROR(cudaMemcpy(devLetters, letterData.letters.data(), letterData.letters.size() * sizeof(char), cudaMemcpyHostToDevice));
+    // char* devLetters;
+	// HANDLE_ERROR(cudaMalloc(&devLetters, letterData.letters.size() * sizeof(char)));
+    // HANDLE_ERROR(cudaMemcpy(devLetters, letterData.letters.data(), letterData.letters.size() * sizeof(char), cudaMemcpyHostToDevice));
 	double* devAttributes;
-	HANDLE_ERROR(cudaMalloc(&devAttributes, letterData.attributes.size() * sizeof(double)));
-    HANDLE_ERROR(cudaMemcpy(devAttributes, letterData.attributes.data(), letterData.attributes.size() * sizeof(double), cudaMemcpyHostToDevice));
+	HANDLE_ERROR(cudaMalloc(&devAttributes, ATTRIBUTES_AMOUNT * ROWS_AMOUNT * sizeof(double)));
+    HANDLE_ERROR(cudaMemcpy(devAttributes, letterData.attributes.data(), ATTRIBUTES_AMOUNT * ROWS_AMOUNT * sizeof(double), cudaMemcpyHostToDevice));
     // Copy dataset for each test row
-    // Result result{0, 0};
+    Result result{0, 0};
     for (int i = TRAIN_SET_SIZE; i < TRAIN_SET_SIZE + TEST_SET_SIZE; ++i)
     {
         // cout << "i = " << i << endl;
-        double* dataset = nullptr;
-        HANDLE_ERROR(cudaMalloc(&dataset, ATTRIBUTES_AMOUNT * ROWS_AMOUNT * sizeof(double)));
-        HANDLE_ERROR(cudaMemcpy(dataset, devAttributes, ATTRIBUTES_AMOUNT * ROWS_AMOUNT * sizeof(double), cudaMemcpyDeviceToDevice));
+        // double* dataset = nullptr;
+        // HANDLE_ERROR(cudaMalloc(&dataset, ATTRIBUTES_AMOUNT * ROWS_AMOUNT * sizeof(double)));
+        // cudaDeviceSynchronize();
+        // HANDLE_ERROR(cudaMemcpy(dataset, devAttributes, ATTRIBUTES_AMOUNT * ROWS_AMOUNT * sizeof(double), cudaMemcpyDeviceToDevice));
+        // cudaDeviceSynchronize();
 
-        GPU::knn<<<ATTRIBUTES_AMOUNT, BLOCK_DIM>>>(dataset, i, devLetters);
+        char predictedGenre = '-';
+        GPU::knn<<<ATTRIBUTES_AMOUNT, BLOCK_DIM>>>(devAttributes, i, &predictedGenre);
+
+        auto actualGenre = letterData.letters[i];
+        if (predictedGenre == actualGenre)
+            result.correct++;
+
         cudaDeviceSynchronize();
-        HANDLE_ERROR(cudaFree(dataset));
+        // HANDLE_ERROR(cudaFree(dataset));
     }
 
-    // result.all = TEST_SET_SIZE;
+    result.all = TEST_SET_SIZE;
 
     HANDLE_ERROR(cudaFree(devAttributes));
-    HANDLE_ERROR(cudaFree(devLetters));
+    // HANDLE_ERROR(cudaFree(devLetters));
 
     // return result;
-    return Result{};
+    return result;
 }
 
 // auto LetterRecognition::knn(LetterData& letterData, uint32_t neighbours) -> Result
