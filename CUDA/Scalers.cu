@@ -23,12 +23,11 @@ namespace
 {
     using namespace std;
 
-    const uint32_t BLOCK_DIM = 200;
+    const uint32_t BLOCK_DIM = 100;
 
 	const uint32_t ROWS_AMOUNT = 20000;
 	const uint32_t ATTRIBUTES_AMOUNT = 16;
-    const uint32_t MATRIX_SIZE = ATTRIBUTES_AMOUNT + 1; // attributes + its class
-    
+
     __device__ void findLocalMinMax(double* devAttributes, double* mins, double* maxes)
     {
         int thisThreadStart = threadIdx.x * ROWS_AMOUNT / blockDim.x + blockIdx.x * ROWS_AMOUNT;
@@ -53,55 +52,64 @@ namespace
         maxes[blockIdx.x * blockDim.x + threadIdx.x] = localMax;
     }
 
-    __device__ void findMinMax(volatile double* min, volatile double* max, double* localMin, double* localMax)
+    __device__ void findMinMax(double* min, double* max, double* localMin, double* localMax)
     {
         if (threadIdx.x == 0)
         {
-            min[blockIdx.x] = localMin[blockIdx.x * blockDim.x];
-            max[blockIdx.x] = localMax[blockIdx.x * blockDim.x];
+            *min = localMin[blockIdx.x * blockDim.x];
+            *max = localMax[blockIdx.x * blockDim.x];
         }
         __syncthreads();
 
-        for (int i = threadIdx.x; i < blockDim.x; ++i)
+        for (int i = 0; i < blockDim.x; ++i)
         {
-        auto localMinValue = localMin[blockIdx.x * blockDim.x + i];
-        // auto localMinValue = localMin[blockIdx.x * blockDim.x + threadIdx.x];
-        if (min[blockIdx.x] > localMinValue)
-        {
-            min[blockIdx.x] = localMinValue;
-        }
-        auto localMaxValue = localMax[blockIdx.x * blockDim.x + i];
-        // auto localMaxValue = localMax[blockIdx.x * blockDim.x + threadIdx.x];
-        if (max[blockIdx.x] < localMaxValue)
-        {
-            max[blockIdx.x] = localMaxValue;
-        }
+            auto localMinValue = localMin[blockIdx.x * blockDim.x + i];
+            if (*min > localMinValue)
+            {
+                *min = localMinValue;
+            }
+            auto localMaxValue = localMax[blockIdx.x * blockDim.x + i];
+            if (*max < localMaxValue)
+            {
+                *max = localMaxValue;
+            }
         }
     }
     
-    __global__ void normalize(double* devAttributes, double* localMin, double* localMax)
+    __device__ void transformValuesByNormalization(double* devAttributes, double* min, double* max)
     {
-        // double localMin[ATTRIBUTES_AMOUNT * BLOCK_DIM];
-        // double localMax[ATTRIBUTES_AMOUNT * BLOCK_DIM];
+        int thisThreadStart = threadIdx.x * ROWS_AMOUNT / blockDim.x + blockIdx.x * ROWS_AMOUNT;
+        const int nextThreadStart = (threadIdx.x + 1) * ROWS_AMOUNT / blockDim.x + blockIdx.x * ROWS_AMOUNT;
+        double diff = *max - *min;
+        for (int row = thisThreadStart; row < nextThreadStart; ++row)
+        {
+            devAttributes[row] = (devAttributes[row] - *min) / diff;
+        }
+    }
 
+    __global__ void normalize(double* devAttributes)
+    {
+        __shared__ double max;
+        __shared__ double min;
+        {
+        __shared__ double localMax[ATTRIBUTES_AMOUNT * BLOCK_DIM];
+        __shared__ double localMin[ATTRIBUTES_AMOUNT * BLOCK_DIM];
         findLocalMinMax(devAttributes, localMin, localMax);
         __syncthreads();
 
-        __shared__ double max[ATTRIBUTES_AMOUNT];
-        __shared__ double min[ATTRIBUTES_AMOUNT];
-
-        // if (threadIdx.x == 0)
-        // {
-        findMinMax(min, max, localMin, localMax);
-        // }
+        findMinMax(&min, &max, localMin, localMax);
         __syncthreads();
+        } // scoped localMin and localMax
+
+        transformValuesByNormalization(devAttributes, &min, &max);
+
 
         // printf ("BEFORE SAVE blockIdx.x=%d threadIdx.x=%d [%lf : %lf]\n", blockIdx.x, threadIdx.x, min[blockIdx.x], max[blockIdx.x]);
-        if (threadIdx.x == 0)
-        {
-            devAttributes[blockIdx.x] = min[blockIdx.x];
-            devAttributes[20000 + blockIdx.x] = max[blockIdx.x];
-        }
+        // if (threadIdx.x == 0)
+        // {
+        //     devAttributes[blockIdx.x] = min;
+        //     devAttributes[20000 + blockIdx.x] = max;
+        // }
 
 
 
@@ -148,54 +156,13 @@ namespace
 
 void Scalers::normalize(vector<double>& attributesValues)
 {
-    double* devLocalMin;
-    HANDLE_ERROR(cudaMalloc(&devLocalMin, ATTRIBUTES_AMOUNT * BLOCK_DIM * sizeof(double)));
-    double* devLocalMax;
-    HANDLE_ERROR(cudaMalloc(&devLocalMax, ATTRIBUTES_AMOUNT * BLOCK_DIM * sizeof(double)));
-    
-
     double* attributes = attributesValues.data();
 	double* devAttributes = nullptr;
 	HANDLE_ERROR(cudaMalloc(&devAttributes, attributesValues.size() * sizeof(double)));
     HANDLE_ERROR(cudaMemcpy(devAttributes, attributes, attributesValues.size() * sizeof(double), cudaMemcpyHostToDevice));
-    // Stopwatch watch;
-    // watch.start();
-	::normalize<<<ATTRIBUTES_AMOUNT, BLOCK_DIM>>>(devAttributes, devLocalMin, devLocalMax);
-    // watch.stop();
-    // watch.displayTime();
+	::normalize<<<ATTRIBUTES_AMOUNT, BLOCK_DIM>>>(devAttributes);
 	HANDLE_ERROR(cudaMemcpy(attributes, devAttributes, attributesValues.size() * sizeof(double), cudaMemcpyDeviceToHost));
-    // for (int i = 0; i < ATTRIBUTES_AMOUNT; ++i)
-    // {
-    //     cout << "j = " << i << endl;
-    //     HANDLE_ERROR(cudaMemcpy(&attributes[i], &devAttributes[i], ROWS_AMOUNT * sizeof(double), cudaMemcpyDeviceToHost));
-    //     HANDLE_ERROR(cudaFree(&devAttributes[i]));
-    // }
     cudaFree(devAttributes);
-    
-
-    
-    double localMax[ATTRIBUTES_AMOUNT * BLOCK_DIM];
-	HANDLE_ERROR(cudaMemcpy(localMax, devLocalMax, ATTRIBUTES_AMOUNT * BLOCK_DIM * sizeof(double), cudaMemcpyDeviceToHost));
-    cudaFree(devLocalMax);
-    double localMin[ATTRIBUTES_AMOUNT * BLOCK_DIM];
-	HANDLE_ERROR(cudaMemcpy(localMin, devLocalMin, ATTRIBUTES_AMOUNT * BLOCK_DIM * sizeof(double), cudaMemcpyDeviceToHost));
-    cudaFree(devLocalMin);
-
-    // for (int i = 0; i < ATTRIBUTES_AMOUNT; ++i)
-    // {
-    //     cout << " localMin[" << i <<"] ";
-    //     for (int j = 0; j < BLOCK_DIM; ++j)
-    //     {
-    //         cout << localMin[i*BLOCK_DIM + j] << " ";
-    //     }
-    //     cout << endl;
-    //     cout << " localMax[" << i <<"] ";
-    //     for (int j = 0; j < BLOCK_DIM; ++j)
-    //     {
-    //         cout << localMax[i*BLOCK_DIM + j] << " ";
-    //     }
-    //     cout << endl;
-    // }
 }
 
 // vector<double*> Scalers::transformToRawPointer(vector<vector<double>>& matrix)
