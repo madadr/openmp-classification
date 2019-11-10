@@ -37,7 +37,7 @@ int main()
     // auto results = letterRecognition.knn(letterData, 5);
     
     // results.printConfustionMatrix();
-    results.printOverallResult();
+    // results.printOverallResult();
 
     return 0;
 }

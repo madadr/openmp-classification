@@ -7,7 +7,6 @@
 #include <cmath>
 #include <cstdint>
 #include <set>
-#include <omp.h>
 
 namespace
 {
@@ -67,15 +66,6 @@ void LetterRecognition::Result::printOverallResult()
         << ", Percentage: " << percentage << "%" << std::endl;
 }
 
-void LetterRecognition::Result::printConfustionMatrix()
-{
-    for (const auto& entry : confusionMatrix)
-    {
-        double percentage = static_cast<double>(entry.second.first) / static_cast<double>(entry.second.first + entry.second.second) * 100.0;
-        std::cout << "Letter: " << entry.first << ",\tpercentage: " << percentage << "%,\tcorrect: " << entry.second.first << ",\tincorrect: " << entry.second.second << std::endl;
-    }
-}
-
 auto LetterRecognition::knn(LetterData& letterData) -> Result
 {
     const uint32_t TRAIN_SET_SIZE = SET_SIZE * 0.9;
@@ -83,9 +73,7 @@ auto LetterRecognition::knn(LetterData& letterData) -> Result
 
     uint32_t i;
     vector<double> dataset;
-    Result result{0, 0, {}};
-    // #pragma omp parallel for shared(result) private(i, dataset) schedule(static) num_threads(2)
-    #pragma omp parallel for shared(result) private(i, dataset) schedule(static)
+    Result result{0, 0};
     for (i = TRAIN_SET_SIZE; i < TRAIN_SET_SIZE + TEST_SET_SIZE; ++i)
     {
         // Copy dataset for each test row
@@ -93,7 +81,6 @@ auto LetterRecognition::knn(LetterData& letterData) -> Result
 
         // Calculate squares for every attribute
         uint32_t j;
-        // #pragma omp parallel for shared(dataset) private(j) schedule(static)
         for (j = 0; j < letterData.attributesAmount; ++j)
         {
             double testAttribute = dataset.at(j * SET_SIZE + i);
@@ -110,7 +97,6 @@ auto LetterRecognition::knn(LetterData& letterData) -> Result
         double minimalSum;
         char predictedGenre = '0';
         // Sum each row & calculate square root
-        // #pragma omp parallel for shared(minimalSum, predictedGenre) private(k) schedule(static)
         for (k = 0; k < TRAIN_SET_SIZE; ++k)
         {
             double sum = 0.0;
@@ -130,18 +116,10 @@ auto LetterRecognition::knn(LetterData& letterData) -> Result
         }
 
         auto actualGenre = letterData.letters.at(i);
-        // Add result to overall result & confusion result
-        if (result.confusionMatrix.find(actualGenre) == result.confusionMatrix.end())
-        {
-            result.confusionMatrix[actualGenre] = make_pair(0, 0);
-        }
 
         if (predictedGenre == actualGenre)
         {
-            ++result.confusionMatrix[actualGenre].first;
             ++result.correct;
-        } else {
-            ++result.confusionMatrix[actualGenre].second;
         }
     }
 
@@ -150,136 +128,101 @@ auto LetterRecognition::knn(LetterData& letterData) -> Result
     return result;
 }
 
-auto LetterRecognition::knn(LetterData& letterData, uint32_t neighbours) -> Result
-{
-    const uint32_t TRAIN_SET_SIZE = SET_SIZE * 0.9;
-    const uint32_t TEST_SET_SIZE = SET_SIZE - TRAIN_SET_SIZE;
-
-    uint32_t i;
-    vector<double> dataset;
-    Result result{0, 0, {}};
-    // #pragma omp parallel for shared(result) private(i, dataset) schedule(static) num_threads(2)
-    #pragma omp parallel for shared(result) private(i, dataset) schedule(static) num_threads(2)
-    for (i = TRAIN_SET_SIZE; i < TRAIN_SET_SIZE + TEST_SET_SIZE; ++i)
-    {
-        // Copy dataset for each test row
-        dataset = letterData.attributes;
-
-        // Calculate squares for every attribute
-        uint32_t j;
-        for (j = 0; j < letterData.attributesAmount; ++j)
-        {
-            double testAttribute = dataset.at(j * SET_SIZE + i);
-            uint32_t k;
-            for (k = 0; k < TRAIN_SET_SIZE; ++k)
-            {
-                double tmp = testAttribute - dataset.at(j * SET_SIZE + k);
-                dataset.at(j * SET_SIZE + k) = tmp * tmp;
-            }
-        }
-        
-        set<pair<double, char>> nearestNeighbours;
-        uint32_t k;
-        // Sum each row & calculate square root
-        for (k = 0; k < TRAIN_SET_SIZE; ++k)
-        {
-            double sum = 0.0;
-            char genre = '0';
-            uint32_t a;
-            for (a = 0; a < ATTRIBUTES; ++a)
-            {
-                sum += dataset.at(a * SET_SIZE + k);
-            }
-
-            sum = sqrt(sum);
-            genre = letterData.letters.at(k);
-
-            if (k < neighbours)
-            {
-                nearestNeighbours.emplace(make_pair(sum, genre));
-            }
-            else if ((*--nearestNeighbours.end()).first > sum)
-            {
-                nearestNeighbours.erase(--nearestNeighbours.end());
-                nearestNeighbours.emplace(make_pair(sum, genre));
-            }
-        }
-
-        // Vote/decide which neighbour
-        auto predictedGenre = voteOnGenre(nearestNeighbours);
-        auto actualGenre = letterData.letters.at(i);
-        // Add result to overall result & confusion result
-        if (result.confusionMatrix.find(actualGenre) == result.confusionMatrix.end())
-        {
-            result.confusionMatrix[actualGenre] = make_pair(0, 0);
-        }
-
-        // std::cout << "Actual:\t" << actualGenre << ", predicted\t" << predictedGenre << std::endl;
-        if (predictedGenre == actualGenre)
-        {
-            ++result.confusionMatrix[actualGenre].first;
-            ++result.correct;
-        } else {
-            ++result.confusionMatrix[actualGenre].second;
-        }
-    }
-
-    result.all = TEST_SET_SIZE;
-
-    return result;
-}
-
-char LetterRecognition::voteOnGenre(const set<pair<double, char>>& nearestNeighbours)
-{
-    map<char, uint32_t> occurencesMap;
-
-    for (const auto& entry : nearestNeighbours)
-    {
-        char neighbour = entry.second;
-        if (occurencesMap.find(neighbour) == occurencesMap.end())
-        {
-            occurencesMap[neighbour] = 1;
-        } else {
-            ++occurencesMap[neighbour];
-        }
-    }
-
-    char chosenChar;
-    uint32_t chosenCharOccurences = 0;
-    for (const auto& entry : occurencesMap)
-    {
-        // cout << entry.first << ":" << entry.second << endl;
-        if (entry.second > chosenCharOccurences)
-        {
-            chosenChar = entry.first;
-            chosenCharOccurences = entry.second;
-        }
-    }
-
-    return chosenChar;
-}
-
-// void LetterRecognition::crossValidation(LetterData& letterData, uint32_t neighbours)
+// auto LetterRecognition::knn(LetterData& letterData, uint32_t neighbours) -> Result
 // {
-//     const int ITERATIONS = 10;
-//     cout << "Cross validating for " << ITERATIONS << " subsets..." << endl;
-//     uint32_t correct = 0; 
-//     uint32_t all = 0; 
-//     for (int i = 0; i < ITERATIONS; ++i)
+//     const uint32_t TRAIN_SET_SIZE = SET_SIZE * 0.9;
+//     const uint32_t TEST_SET_SIZE = SET_SIZE - TRAIN_SET_SIZE;
+
+//     uint32_t i;
+//     vector<double> dataset;
+//     Result result{0, 0, {}};
+//     for (i = TRAIN_SET_SIZE; i < TRAIN_SET_SIZE + TEST_SET_SIZE; ++i)
 //     {
-//         for (auto& attributeSet : letterData.attributes)
+//         // Copy dataset for each test row
+//         dataset = letterData.attributes;
+
+//         // Calculate squares for every attribute
+//         uint32_t j;
+//         for (j = 0; j < letterData.attributesAmount; ++j)
 //         {
-//             std::rotate(attributeSet.begin(), attributeSet.begin() + (SET_SIZE * 0.1), attributeSet.end());
+//             double testAttribute = dataset.at(j * SET_SIZE + i);
+//             uint32_t k;
+//             for (k = 0; k < TRAIN_SET_SIZE; ++k)
+//             {
+//                 double tmp = testAttribute - dataset.at(j * SET_SIZE + k);
+//                 dataset.at(j * SET_SIZE + k) = tmp * tmp;
+//             }
 //         }
-//         std::rotate(letterData.letters.begin(), letterData.letters.begin() + (SET_SIZE * 0.1), letterData.letters.end());
-//         auto result = knn(letterData, neighbours);
-//         correct += result.correct;
-//         all += result.all;
-//         cout << "Subset " << i + 1 << " results: " << endl;
-//         result.printOverallResult();
+        
+//         set<pair<double, char>> nearestNeighbours;
+//         uint32_t k;
+//         // Sum each row & calculate square root
+//         for (k = 0; k < TRAIN_SET_SIZE; ++k)
+//         {
+//             double sum = 0.0;
+//             char genre = '0';
+//             uint32_t a;
+//             for (a = 0; a < ATTRIBUTES; ++a)
+//             {
+//                 sum += dataset.at(a * SET_SIZE + k);
+//             }
+
+//             sum = sqrt(sum);
+//             genre = letterData.letters.at(k);
+
+//             if (k < neighbours)
+//             {
+//                 nearestNeighbours.emplace(make_pair(sum, genre));
+//             }
+//             else if ((*--nearestNeighbours.end()).first > sum)
+//             {
+//                 nearestNeighbours.erase(--nearestNeighbours.end());
+//                 nearestNeighbours.emplace(make_pair(sum, genre));
+//             }
+//         }
+
+//         // Vote/decide which neighbour
+//         auto predictedGenre = voteOnGenre(nearestNeighbours);
+//         auto actualGenre = letterData.letters.at(i);       
+
+//         // std::cout << "Actual:\t" << actualGenre << ", predicted\t" << predictedGenre << std::endl;
+//         if (predictedGenre == actualGenre)
+//         {
+//             ++result.correct;
+//         }
 //     }
 
-//     cout << "Overall cross validation results: " << endl;
-//     Result result{correct, all, {}};
-//     result.printOverallResult();
+//     result.all = TEST_SET_SIZE;
+
+//     return result;
+// }
+
+// char LetterRecognition::voteOnGenre(const set<pair<double, char>>& nearestNeighbours)
+// {
+//     map<char, uint32_t> occurencesMap;
+
+//     for (const auto& entry : nearestNeighbours)
+//     {
+//         char neighbour = entry.second;
+//         if (occurencesMap.find(neighbour) == occurencesMap.end())
+//         {
+//             occurencesMap[neighbour] = 1;
+//         } else {
+//             ++occurencesMap[neighbour];
+//         }
+//     }
+
+//     char chosenChar;
+//     uint32_t chosenCharOccurences = 0;
+//     for (const auto& entry : occurencesMap)
+//     {
+//         // cout << entry.first << ":" << entry.second << endl;
+//         if (entry.second > chosenCharOccurences)
+//         {
+//             chosenChar = entry.first;
+//             chosenCharOccurences = entry.second;
+//         }
+//     }
+
+//     return chosenChar;
 // }
