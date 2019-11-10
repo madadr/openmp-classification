@@ -29,11 +29,11 @@ int main()
     scalers.normalize(letterData.attributes);
     timer.stop();
     timer.displayTime();
-    // for (int i = 0; i < 16; ++i)
-    // {
-    //     cout << "min " << i << ": " << letterData.attributes[0 + i] << endl;
-    //     cout << "max " << i << ": " << letterData.attributes[20000 + i] << endl;
-    // }
+    for (int i = 0; i < 16; ++i)
+    {
+        cout << "min " << i << ": " << letterData.attributes[0 + i] << endl;
+        cout << "max " << i << ": " << letterData.attributes[20000 + i] << endl;
+    }
 
     // auto results = letterRecognition.knn(letterData);
 

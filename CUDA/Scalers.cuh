@@ -25,9 +25,8 @@ class Scalers
 {
 	// vector<double*> transformToRawPointer(vector<vector<double>>& attributes);
     //pair<double, double> findMinMax(vector<double> &attributeSet);
-    pair<double, double> findAverageAndVariation(vector<double> &attributeSet);    
+    // pair<double, double> findAverageAndVariation(vector<double> &attributeSet);    
 public:
 	void normalize(vector<double>& attributeSet);
-    // void normalize(vector<double> &attributeSet);
     void standarize(vector<double> &attributeSet);
 };
