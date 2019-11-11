@@ -26,7 +26,7 @@ namespace
 using namespace std;
 using namespace cooperative_groups;
 
-const uint32_t BLOCK_DIM = 10;
+const uint32_t BLOCK_DIM = 50;
 
 const uint32_t ROWS_AMOUNT = 20000;
 const uint32_t ATTRIBUTES_AMOUNT = 16;

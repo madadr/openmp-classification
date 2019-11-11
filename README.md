@@ -1,10 +1,23 @@
-# Classification app
-- Solution for classification problem solved in two languages: C++ (parallel with OpenMP and MPI) and Python (with sklearn).
-- Letter recognition dataset (UCI) - https://archive.ics.uci.edu/ml/datasets/Letter+Recognition
-- KNN algorithm was used with 2 data preparation variants: data minmax normalization and linear standarization.
+# Parallel k-nearest neighbours algorithm
+- Solution for KNN algorithm solved in parallel with two languages:
+    - C++
+        * OpenMP
+        * MPI
+        * CUDA
+    - Python
+        * sklearn
+        * sklearn + MPI
+- Letter recognition dataset (UCI)
+    - `https://archive.ics.uci.edu/ml/datasets/Letter+Recognition`
+- KNN algorithm was used with 2 data scalers:
+    - minmax normalization
+    - linear standarization.
 
-## Environment preparation
-### C++ & OpenMP & MPI
+## Specific requirements
+- CUDA: GPU with compute compatibility at least 7.5; tested on GeForce RTX 2080 Ti
+
+## Setup environment
+### C++ (OpenMP, MPI, CUDA)
 #### Install g++
 ```
 sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
@@ -33,13 +46,18 @@ sudo make all install
 echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope # When receiving CMA support is not available due to restrictive ptrace settings when executing mpirun/mpiexec
 ```
 
-##### Alternative way
+##### Alternative way (faster, but not tested)
 ```
 sudo apt-get update
 sudo apt-get upgrade
 sudo apt-get install libopenmpi-dev
 sudo apt-get install g++
 echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope # When receiving CMA support is not available due to restrictive ptrace settings when executing mpirun/mpiexec
+```
+
+#### Install CUDA
+```
+https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html
 ```
 
 ### Python
@@ -55,9 +73,10 @@ pip3 install -U scikit-learn[alldeps]
 
 ## Running apps
 ### Compile & execute C++ program
-```
-g++ -std=gnu++17 -Wall -fopenmp Main.cpp Stopwatch.cpp LetterRecognition.cpp Scalers.cpp -o app && ./app
-```
+All C++ program have included running scripts in their directories with name `RunApp.sh`.
+- `./OpenMP/RunApp.sh`
+- `./MPI/RunApp.sh`
+- `./CUDA/RunApp.sh`
 
 ### Execute Python program
 ```
@@ -66,8 +85,9 @@ python3 main.py
 
 ## Dataset description
 - Letter recognition dataset
-- https://archive.ics.uci.edu/ml/datasets/Letter+Recognition
+- `https://archive.ics.uci.edu/ml/datasets/Letter+Recognition`
 - CSV format:
+```
   1. lettr capital letter (26 values from A to Z)
   2. x-box horizontal position of box (integer)
   3. y-box vertical position of box (integer)
@@ -85,4 +105,4 @@ python3 main.py
   15. xegvy correlation of x-ege with y (integer)
   16. y-ege mean edge count bottom to top (integer)
   17. yegvx correlation of y-ege with x (integer)
-
+```
