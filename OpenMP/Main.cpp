@@ -29,6 +29,10 @@ int main()
         scalers.standarize(letterData.attributes.at(i));
     }
 
+
+    for (int i=0; i<16; i++) {
+        cout<<"Standarized: "<<letterData.attributes[0][i]<<endl;
+    }
     // timer.start();
 
     // letterRecognition.crossValidation(letterData, 5);
