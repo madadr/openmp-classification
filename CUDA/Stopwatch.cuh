@@ -6,6 +6,7 @@ private:
     cudaEvent_t startTime;
     cudaEvent_t stopTime;
     float time;
+
 public:
     Stopwatch();
     void start();

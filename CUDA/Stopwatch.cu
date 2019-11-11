@@ -1,12 +1,14 @@
 #include "Stopwatch.cuh"
+
 #include <iostream>
-#define HANDLE_ERROR( err ) ( HandleError( err, __FILE__, __LINE__ ) )
+
+#define HANDLE_ERROR(err) (HandleError(err, __FILE__, __LINE__))
 
 static void HandleError(cudaError_t err, const char *file, int line)
 {
     if (err != cudaSuccess)
     {
-        printf("%s in %s at line %d\n", cudaGetErrorString(err),file, line);
+        printf("%s in %s at line %d\n", cudaGetErrorString(err), file, line);
         exit(EXIT_FAILURE);
     }
 }
@@ -30,6 +32,6 @@ void Stopwatch::stop()
 
 void Stopwatch::displayTime()
 {
-    HANDLE_ERROR(cudaEventElapsedTime(&time, startTime, stopTime) );
-    std::cout << "Elapsed time: " << time << " ms"<< std::endl;
+    HANDLE_ERROR(cudaEventElapsedTime(&time, startTime, stopTime));
+    std::cout << "Elapsed time: " << time << " ms" << std::endl;
 }

@@ -8,7 +8,7 @@
 
 namespace
 {
-    using namespace std;
+using namespace std;
 }
 
 struct LetterRecognition
@@ -28,9 +28,6 @@ struct LetterRecognition
         void printOverallResult();
     };
 
-    LetterData fetchData(const string& path);
-    Result knn(LetterData& letterData);
-    // Result knn(LetterData& letterData, uint32_t neighbours);
-// private:
-    // char voteOnGenre(const set<pair<double, char>>& nearestNeighbours);
+    LetterData fetchData(const string &path);
+    Result knn(LetterData &letterData);
 };

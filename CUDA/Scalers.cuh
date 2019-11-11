@@ -4,11 +4,11 @@
 
 namespace
 {
-    using namespace std;
+using namespace std;
 }
 
 struct Scalers
 {
-	void normalize(vector<double>& attributeSet);
+    void normalize(vector<double> &attributeSet);
     void standarize(vector<double> &attributeSet);
 };

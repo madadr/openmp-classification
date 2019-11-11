@@ -1,9 +1,3 @@
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
-
-#include <stdio.h>
-
-#include <cstdint>
 #include <iostream>
 
 #include "LetterRecognition.cuh"
@@ -12,7 +6,7 @@
 
 namespace
 {
-    using namespace std;
+using namespace std;
 }
 
 int main()
@@ -21,7 +15,6 @@ int main()
     Scalers scalers;
     Stopwatch timer;
     const string DATASET_PATH{"../csv/letter-recognition.csv"};
-
 
     auto letterData = letterRecognition.fetchData(DATASET_PATH);
 
