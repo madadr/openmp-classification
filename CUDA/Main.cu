@@ -9,7 +9,6 @@
 #include "LetterRecognition.cuh"
 #include "Scalers.cuh"
 #include "Stopwatch.cuh"
-// #include "Stopwatch.hpp"
 
 namespace
 {
@@ -26,22 +25,21 @@ int main()
 
     auto letterData = letterRecognition.fetchData(DATASET_PATH);
 
-    // timer.start();
-    scalers.normalize(letterData.attributes);
-    // scalers.standarize(letterData.attributes);
-    // timer.stop();
-    // timer.displayTime();
+    timer.start();
+    // scalers.normalize(letterData.attributes);
+    scalers.standarize(letterData.attributes);
+    timer.stop();
+    // cout << "Normalization: ";
+    cout << "Standarization: ";
+    timer.displayTime();
 
     timer.start();
     auto results = letterRecognition.knn(letterData);
     timer.stop();
+    cout << "KNN: ";
     timer.displayTime();
 
-    // letterRecognition.crossValidation(letterData, 5);
-    // auto results = letterRecognition.knn(letterData, 5);
-    
-    // results.printConfustionMatrix();
-    // results.printOverallResult();
+    results.printOverallResult();
 
     return 0;
 }
